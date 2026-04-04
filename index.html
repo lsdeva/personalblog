@@ -63,11 +63,14 @@ body { background: var(--cream); font-family: 'Syne', sans-serif; overflow-x: hi
 
 /* ── FLOATING ARCH ── */
 #arch-float {
-  position: absolute; z-index: 10;
+  position: fixed; z-index: 10;
   background: var(--cream); border: 1.5px solid var(--ink);
-  display: none; flex-direction: column;
-  padding: 20px 20px 20px;
-  overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column;
+  padding: 20px;
+  overflow-y: hidden; overflow-x: hidden;
+  visibility: hidden; pointer-events: none; opacity: 0;
+  transform-origin: top left;
+  will-change: transform, opacity;
 }
 
 /* ── SCROLL CUE ── */
@@ -80,8 +83,7 @@ body { background: var(--cream); font-family: 'Syne', sans-serif; overflow-x: hi
 @keyframes cf { 0%,100%{transform:translateX(-50%) translateY(0);opacity:.6} 50%{transform:translateX(-50%) translateY(5px);opacity:1} }
 
 /* ── DETAIL STYLES ── */
-#arch-detail { display: none; flex-direction: column; opacity: 0; transition: opacity .5s ease; margin-top: 20px; }
-#arch-detail.show { opacity: 1; }
+#arch-detail { display: flex; flex-direction: column; opacity: 0; visibility: hidden; margin-top: 20px; }
 
 .adot { width:5px; height:5px; border-radius:50%; background:var(--muted); display:inline-block; animation:sp 1.4s ease-in-out infinite; }
 .adot.c { background:var(--coral); }
@@ -106,6 +108,14 @@ body { background: var(--cream); font-family: 'Syne', sans-serif; overflow-x: hi
 
 @keyframes fsu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pg{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px rgba(232,65,42,.45)}}
+
+@media (prefers-reduced-motion: reduce) {
+  .coral-pill, #scroll-cue, .adot,
+  .sp, .sp2, .sp3, .sp4,
+  .dfd, .dfd2, .dfc, .dl, .dr { animation: none; }
+  .h-dont,.h-sub,.h-act,.h-ins,.tagline { animation: none; opacity: 1; }
+  .ni1,.ni2,.ni3,.ni4,.ni5,.ni6,.ni7,.ni8,.ni9,.ni10,.ni11 { animation: none; opacity: 1; }
+}
 </style>
 </head>
 <body>
@@ -176,7 +186,7 @@ body { background: var(--cream); font-family: 'Syne', sans-serif; overflow-x: hi
     <p style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Architecture</p>
 
     <!-- compact SVG -->
-    <svg id="arch-svg" viewBox="0 0 290 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;overflow:visible;flex-shrink:0;transition:opacity .4s" font-family="'JetBrains Mono',monospace">
+    <svg id="arch-svg" viewBox="0 0 290 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;overflow:visible;flex-shrink:0;transition:opacity .4s, max-height .4s ease" font-family="'JetBrains Mono',monospace">
       <defs>
         <marker id="a1" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#7A7065"/></marker>
         <marker id="ac1" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#E8412A"/></marker>
@@ -355,7 +365,6 @@ body { background: var(--cream); font-family: 'Syne', sans-serif; overflow-x: hi
 </div><!-- /driver -->
 
 <script>
-const heroWrap   = document.getElementById('hero-wrap');
 const slideEl    = document.getElementById('slide-el');
 const slideLeft  = document.getElementById('slide-left');
 const slideHdr   = document.getElementById('slide-header');
@@ -366,89 +375,109 @@ const archSvg    = document.getElementById('arch-svg');
 const archDetail = document.getElementById('arch-detail');
 const scrollCue  = document.getElementById('scroll-cue');
 
-function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
-function lerp(a,b,t){return a+(b-a)*t;}
-function ease(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi,v)); }
+function lerp(a,b,t){ return a + (b-a)*t; }
+function ease(t){ return t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; }
 
-let detailShown = false;
 const PAD = 32;
+let panelCache = { left:0, top:0, width:0, height:0 };
+let finalRect  = { left:0, top:0, width:0, height:0 };
+let svgNaturalH = 400;
 
-function onScroll(){
-  const sy = window.scrollY;
-  const vh = window.innerHeight;
+function cacheGeometry() {
+  // Briefly make visible to measure (it starts visibility:hidden)
+  archFloat.style.visibility = 'visible';
+  svgNaturalH = archSvg.scrollHeight || 400;
+  archFloat.style.visibility = 'hidden';
+
+  const pr = panelRef.getBoundingClientRect();
+  panelCache = { left: pr.left, top: pr.top, width: pr.width, height: pr.height };
+
   const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const endW = Math.min(vw * 0.88, 920);
+  const endL = (vw - endW) / 2;
+  const endT = PAD;
+  const endH = vh - PAD * 2;
+  finalRect = { left: endL, top: endT, width: endW, height: endH };
 
-  // ── Phase 1: fade out hero text + slide chrome (0 → 0.5vh)
-  const fadeP = clamp(sy/(vh*0.5),0,1);
-  slideLeft.style.opacity  = 1 - fadeP;
-  slideHdr.style.opacity   = 1 - fadeP;
-  slideFtr.style.opacity   = 1 - fadeP;
-  scrollCue.style.opacity  = clamp(1-fadeP*8,0,1);
-  // also fade the slide border/bg so panel floats free
-  slideEl.style.borderColor = `rgba(13,13,13,${1-fadeP})`;
+  // Apply final size once — transform handles position/scale during scroll
+  archFloat.style.width  = endW + 'px';
+  archFloat.style.height = endH + 'px';
+  archFloat.style.left   = endL + 'px';
+  archFloat.style.top    = endT + 'px';
+}
 
-  // ── Phase 2: arch float moves to center & grows (0.1vh → 3.5vh)
+// rAF batching — reads scrollY immediately (cheap), batches all DOM writes to rAF
+let rafPending = false;
+let lastScrollY = 0;
+
+function scheduleFrame() {
+  lastScrollY = window.scrollY;
+  if (!rafPending) {
+    rafPending = true;
+    requestAnimationFrame(runFrame);
+  }
+}
+
+function runFrame() {
+  rafPending = false;
+  onScroll(lastScrollY);
+}
+
+function onScroll(sy) {
+  const vh = window.innerHeight;
+
+  // Phase 1: fade hero chrome (0 → 0.5vh)
+  const fadeP = clamp(sy / (vh * 0.5), 0, 1);
+  slideLeft.style.opacity   = 1 - fadeP;
+  slideHdr.style.opacity    = 1 - fadeP;
+  slideFtr.style.opacity    = 1 - fadeP;
+  scrollCue.style.opacity   = clamp(1 - fadeP * 2, 0, 1);
+  slideEl.style.borderColor = `rgba(13,13,13,${1 - fadeP})`;
+
+  // Phase 2: arch float animates (0.1vh → 3.5vh)
   const MOVE_START = vh * 0.1;
   const MOVE_END   = vh * 3.5;
-  const rawP  = clamp((sy-MOVE_START)/(MOVE_END-MOVE_START),0,1);
+  const rawP  = clamp((sy - MOVE_START) / (MOVE_END - MOVE_START), 0, 1);
   const moveP = ease(rawP);
 
-  if(rawP <= 0){
-    archFloat.style.display = 'none';
+  if (rawP <= 0) {
+    archFloat.style.visibility    = 'hidden';
+    archFloat.style.pointerEvents = 'none';
     return;
   }
 
-  // get panel's current position (stays inside slide even as slide fades)
-  const pr = panelRef.getBoundingClientRect();
+  archFloat.style.visibility    = 'visible';
+  archFloat.style.pointerEvents = 'auto';
+  archFloat.style.opacity       = Math.min(1, rawP * 5);
 
-  // start: match panel exactly
-  const startL = pr.left;
-  const startT = pr.top;
-  const startW = pr.width;
-  const startH = pr.height;
+  // GPU-composited transform — no layout properties written per frame
+  const scaleX = lerp(panelCache.width  / finalRect.width,  1, moveP);
+  const scaleY = lerp(panelCache.height / finalRect.height, 1, moveP);
+  const tx     = lerp(panelCache.left   - finalRect.left,   0, moveP);
+  const ty     = lerp(panelCache.top    - finalRect.top,    0, moveP);
+  archFloat.style.transform = `translate(${tx}px,${ty}px) scale(${scaleX},${scaleY})`;
 
-  // end: centered, 88vw wide, fills most of viewport
-  const endW = Math.min(vw*0.88, 920);
-  const endL = (vw-endW)/2;
-  const endT = PAD;
-  const endH = vh - PAD*2;
+  // SVG fade + smooth collapse
+  const svgFadeOut = clamp((moveP - 0.45) / 0.25, 0, 1);
+  archSvg.style.opacity   = 1 - svgFadeOut;
+  archSvg.style.maxHeight = lerp(svgNaturalH, 0, svgFadeOut) + 'px';
+  archSvg.style.overflow  = svgFadeOut > 0.5 ? 'hidden' : 'visible';
 
-  const curL = lerp(startL, endL, moveP);
-  const curT = lerp(startT, endT, moveP);
-  const curW = lerp(startW, endW, moveP);
-  const curH = lerp(startH, endH, moveP);
-
-  archFloat.style.display  = 'flex';
-  archFloat.style.left     = curL+'px';
-  archFloat.style.top      = curT+'px';
-  archFloat.style.width    = curW+'px';
-  archFloat.style.height   = curH+'px';
-  archFloat.style.opacity  = Math.min(1, rawP*5);
-
-  // fade small SVG out as we expand
-  const svgFadeOut = clamp((moveP-0.45)/0.25,0,1);
-  archSvg.style.opacity  = 1-svgFadeOut;
-  archSvg.style.maxHeight = svgFadeOut > 0.99 ? '0' : '';
-  archSvg.style.overflow  = svgFadeOut > 0.5  ? 'hidden' : 'visible';
-
-  // show detail
-  const detailP = clamp((moveP-0.6)/0.25,0,1);
-  if(detailP > 0 && !detailShown){
-    detailShown = true;
-    archDetail.style.display = 'flex';
-    requestAnimationFrame(()=>{ archDetail.classList.add('show'); });
-  } else if(detailP<=0 && detailShown){
-    detailShown = false;
-    archDetail.classList.remove('show');
-    setTimeout(()=>{ if(!detailShown) archDetail.style.display='none'; },500);
-  }
+  // Detail panel — opacity tied directly to scroll position (bidirectional)
+  const detailOpacity = clamp((moveP - 0.6) / 0.25, 0, 1);
+  archDetail.style.opacity    = detailOpacity;
+  archDetail.style.visibility = detailOpacity > 0 ? 'visible' : 'hidden';
 
   archFloat.style.overflowY = moveP > 0.9 ? 'auto' : 'hidden';
 }
 
-window.addEventListener('scroll', onScroll, {passive:true});
-window.addEventListener('resize', onScroll);
-onScroll();
+window.addEventListener('scroll', scheduleFrame, { passive: true });
+window.addEventListener('resize', () => { cacheGeometry(); scheduleFrame(); });
+
+cacheGeometry();
+onScroll(0);
 </script>
 </body>
 </html>
