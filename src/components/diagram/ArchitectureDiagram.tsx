@@ -36,6 +36,34 @@ function nodeRect(x: number, y: number) {
   }
 }
 
+// Given a line from A → B where A is inside the rectangle, return the point
+// where the line exits the rectangle. Used so edges begin and end on node
+// boundaries rather than node centers (which made diagonal edges look
+// architecturally wrong).
+function clipRayToRect(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  rx: number,
+  ry: number,
+  rw: number,
+  rh: number,
+): { x: number; y: number } {
+  const dx = bx - ax
+  const dy = by - ay
+  if (dx === 0 && dy === 0) return { x: ax, y: ay }
+
+  const tRight = dx > 0 ? (rx + rw - ax) / dx : Infinity
+  const tLeft = dx < 0 ? (rx - ax) / dx : Infinity
+  const tBottom = dy > 0 ? (ry + rh - ay) / dy : Infinity
+  const tTop = dy < 0 ? (ry - ay) / dy : Infinity
+
+  const t = Math.min(tRight, tLeft, tBottom, tTop)
+  if (!Number.isFinite(t)) return { x: ax, y: ay }
+  return { x: ax + t * dx, y: ay + t * dy }
+}
+
 /* ---------- component ---------- */
 
 export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagramProps) {
@@ -203,13 +231,17 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
             if (!from || !to) return null
             const a = cellToPx(from.x, from.y)
             const b = cellToPx(to.x, to.y)
-            // Clamp to box edges so lines visibly enter/leave the nodes.
-            const sameCol = from.x === to.x
-            const sameRow = from.y === to.y
-            const y1 = sameCol ? a.cy + (b.cy > a.cy ? CELL_H / 2 : -CELL_H / 2) : a.cy
-            const y2 = sameCol ? b.cy + (b.cy > a.cy ? -CELL_H / 2 : CELL_H / 2) : b.cy
-            const x1 = sameRow ? a.cx + (b.cx > a.cx ? CELL_W / 2 : -CELL_W / 2) : a.cx
-            const x2 = sameRow ? b.cx + (b.cx > a.cx ? -CELL_W / 2 : CELL_W / 2) : b.cx
+            const ra = nodeRect(from.x, from.y)
+            const rb = nodeRect(to.x, to.y)
+            // Clip both ends of the line to the node boundaries so the line
+            // begins on the source edge and ends on the target edge —
+            // correct for any combination of row/column deltas including diagonals.
+            const start = clipRayToRect(a.cx, a.cy, b.cx, b.cy, ra.x, ra.y, ra.w, ra.h)
+            const end = clipRayToRect(b.cx, b.cy, a.cx, a.cy, rb.x, rb.y, rb.w, rb.h)
+            const x1 = start.x
+            const y1 = start.y
+            const x2 = end.x
+            const y2 = end.y
             const d = `M ${x1} ${y1} L ${x2} ${y2}`
             const id = `${edge.from}->${edge.to}`
             const accent = edge.variant === 'emphasis'

@@ -91,19 +91,22 @@ interface ScrollSceneStickyProps {
 
 // Diagram-centric layout: on desktop, the diagram pins to the top of the
 // viewport as a large centered panel. Prose steps scroll through the space
-// below, each flagging which part of the diagram they describe. On mobile,
-// sticky is skipped — diagram renders once at natural flow and steps follow
-// as normal prose so nothing overlaps.
+// below, each flagging which part of the diagram they describe. Background
+// is opaque (not translucent) — Tailwind's arbitrary-value-with-opacity
+// syntax on CSS vars doesn't reliably compile, and the steps scrolling
+// under the diagram need to be hidden, not showing through.
+// On mobile, sticky is skipped — diagram renders once at natural flow and
+// steps follow as normal prose so nothing overlaps.
 export function ScrollSceneSticky({ children, className }: ScrollSceneStickyProps) {
   return (
     <div
       className={`
         flex items-center justify-center py-6
         md:sticky md:top-[4rem] md:z-10 md:h-[55vh] md:border-b
-        md:border-[var(--color-border)] md:bg-[var(--color-bg)]/90
-        md:py-4 md:backdrop-blur-sm
+        md:border-[var(--color-border)] md:py-4
         ${className ?? ''}
       `}
+      style={{ backgroundColor: 'var(--color-bg)' }}
     >
       <div className="w-full">{children}</div>
     </div>
