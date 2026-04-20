@@ -91,15 +91,40 @@
     line-height: 1.05;
   }
 
+  /* 3-column grid: prose stays in the middle column (max 68ch),
+     while .full-bleed children span the whole content area.
+     This lets <ScrollScene> and wide <Figure>s escape the prose column. */
   .prose-article {
+    display: grid;
+    grid-template-columns:
+      minmax(1rem, 1fr)
+      minmax(0, 68ch)
+      minmax(1rem, 1fr);
+    column-gap: 0;
     font-family: var(--font-sans);
     font-size: 1.0625rem;
     line-height: 1.75;
     color: var(--color-fg);
   }
 
+  .prose-article > * {
+    grid-column: 2;
+  }
+
   .prose-article > * + * {
     margin-top: 1.25em;
+  }
+
+  .prose-article > .full-bleed {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
 
   .prose-article h2 {

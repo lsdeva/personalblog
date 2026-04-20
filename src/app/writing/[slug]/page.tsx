@@ -46,7 +46,7 @@ export default async function ArticlePage({ params }: PageProps) {
   return (
     <LenisProvider>
       <ArticleHeader frontmatter={meta.frontmatter} readingMinutes={meta.readingMinutes} />
-      <article className="prose-article mx-auto max-w-[68ch] px-6">
+      <article className="prose-article">
         <Content />
       </article>
       <ArticleFooterCTA />

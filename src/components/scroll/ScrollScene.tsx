@@ -79,7 +79,7 @@ export function ScrollScene({ children, className }: ScrollSceneProps) {
     >
       <div
         ref={containerRef}
-        className={`relative grid grid-cols-1 gap-x-16 md:grid-cols-2 ${className ?? ''}`}
+        className={`full-bleed relative grid grid-cols-1 gap-x-16 md:grid-cols-2 ${className ?? ''}`}
       >
         {children}
       </div>

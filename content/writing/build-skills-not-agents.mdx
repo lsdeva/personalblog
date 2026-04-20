@@ -1,0 +1,123 @@
+---
+title: Don't build agents. Build skills.
+description: A working mental model for agent systems that don't collapse in production — where the agent is thin, intent-only orchestration and every capability is a testable skill.
+publishedAt: '2026-04-18'
+tags: [agents, architecture]
+diagramId: build-skills
+---
+
+import { buildSkillsDiagram } from '@/diagrams/build-skills'
+
+Most agent projects I review have the same shape: a single LLM call with a fat,
+ever-growing system prompt, a pile of tools bolted on, and a team that's afraid
+to touch any of it. When something breaks, no one can tell you which layer
+broke. Observability is a wall of trace logs and vibes.
+
+The mental model is wrong. You don't build an agent and then add capabilities
+to it. You build **skills** — small, testable units of real work — and the
+agent is what's left after you extract them.
+
+Everything below is a four-layer version of that model. The agent holds
+intent. The skills hold implementation. They meet through the filesystem.
+
+<ScrollScene>
+  <ScrollSceneSticky>
+    <ArchitectureDiagram spec={buildSkillsDiagram} />
+  </ScrollSceneSticky>
+  <ScrollSceneSteps>
+
+    <Step trigger="engineer">
+      ### L1 · The human in the loop
+
+      You are the AI engineer. You write `SKILL.md` files, configure MCP
+      servers, and run evals. The thing you do **not** do is write business
+      logic inside the agent — not in prompts, not in a giant system message,
+      not in a tangle of conditional branches. Logic lives one layer down.
+    </Step>
+
+    <Step trigger="agent">
+      ### L2 · The orchestrator
+
+      Claude — or whichever model you're using — is the orchestrator. Its
+      whole job is to read the available skills, decide which one to call,
+      and sequence calls toward the user's goal. Zero business logic.
+      Zero bespoke prompts for individual capabilities. Move a skill, add a
+      skill, change a skill — the agent layer stays untouched.
+    </Step>
+
+    <Step trigger="tools">
+      ### Tools vs skills
+
+      MCP servers give the agent reach: filesystem access, APIs, search. But a
+      tool is not a skill. Tools are primitives — verbs like `read`, `fetch`,
+      `query`. Skills are compositions of tools with a contract: inputs,
+      outputs, error modes, an eval. If you can't write a passing test for it,
+      it's a tool, not a skill.
+    </Step>
+
+    <Step trigger="filesystem">
+      ### L3 · The persistent layer
+
+      The filesystem is not a detail. It's where `SKILL.md` files live, where
+      outputs are written, where the context the agent reasons over is
+      durable. Once you make this choice — "outputs are files, state is
+      files" — a lot of the usual agent-framework machinery (memory stores,
+      vector DBs, orchestration engines) becomes optional. The filesystem is
+      the orchestration engine.
+    </Step>
+
+    <Step trigger="skills">
+      ### L4 · The skills layer
+
+      Each skill is a self-contained unit, defined in a `SKILL.md` with the
+      prompt, the input contract, the expected output shape, and its eval
+      cases. You ship a new capability by dropping in a new file. You
+      debug a broken capability by running its eval. A skill that passes its
+      eval in isolation will pass inside the agent.
+    </Step>
+
+    <Step trigger="principle">
+      ### The principle
+
+      Your agent's only job is to decide which skill to call — and when.
+      Everything else — parsing, writing, summarising, analysing, API calls,
+      database queries — is a skill. Thin agent, fat skill layer. The
+      opposite of how most teams start.
+    </Step>
+
+  </ScrollSceneSteps>
+</ScrollScene>
+
+## Three consequences
+
+Once you adopt this shape, three things fall out of it for free:
+
+- **Skills hold implementation. Agents hold intent.** Debugging is
+  localised. A capability that's broken is a broken skill, and you know
+  which one from the trace.
+- **A broken skill is a scoped bug. A broken agent is a catastrophe.** You
+  want as much of the system as possible in the first category. The
+  skills-first model maximises it.
+- **New capability = new `SKILL.md`.** No agent rewrites. No prompt
+  surgery. No regressions in unrelated flows. This is the part that makes
+  the system ship-able under audit.
+
+## Where this usually falls over
+
+Two failure modes I see repeatedly:
+
+1. **Skills that aren't skills.** Teams call something a skill when it's
+   really a tool with a wrapper prompt. If there's no eval, it's not a
+   skill — it's a tool you haven't tested yet.
+2. **Agents that aren't thin.** The agent's prompt grows because someone
+   adds "handle case X" logic there instead of in a new skill. Every
+   addition there is technical debt. Push the special case down.
+
+<Callout tone="accent" title="In production">
+  The teams that keep agent systems running past the demo are the ones whose
+  agent loop is boring. Short prompt. Skill registry. Dispatch. That's it. If
+  your agent's prompt is growing week over week, you're building in the
+  wrong layer.
+</Callout>
+
+Build skills. The agent is what's left over.
