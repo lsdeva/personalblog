@@ -17,76 +17,77 @@ The mental model is wrong. You don't build an agent and then add capabilities
 to it. You build **skills** — small, testable units of real work — and the
 agent is what's left after you extract them.
 
-Everything below is a four-layer version of that model. The agent holds
-intent. The skills hold implementation. They meet through the filesystem.
+<DiagramTour spec={buildSkillsDiagram}>
+  <TourFrame scene="overview">
+    **Four layers, one direction of intent.** Engineer → Agent → Filesystem →
+    Skills. The agent holds intent; the skills hold implementation.
+  </TourFrame>
+  <TourFrame scene="engineer">
+    **L1 — AI Engineer.** The human in the loop. Writes `SKILL.md` files,
+    configures MCP servers, runs evals. Never writes logic inside the agent.
+  </TourFrame>
+  <TourFrame scene="agent">
+    **L2 — Claude (Agent).** Thin orchestrator. Reads available skills,
+    decides which to call, sequences calls toward the user's goal. Zero
+    business logic.
+  </TourFrame>
+  <TourFrame scene="tools">
+    **MCP servers — tools, not skills.** `read`, `fetch`, `query` — primitives.
+    A skill is a composition of tools with a contract and an eval.
+  </TourFrame>
+  <TourFrame scene="filesystem">
+    **L3 — Filesystem.** The persistent layer. `SKILL.md` files and outputs
+    live here. Source of truth — replaces most agent-framework machinery.
+  </TourFrame>
+  <TourFrame scene="skills">
+    **L4 — Skills Layer.** Each skill is a self-contained unit defined in
+    its own `SKILL.md`. Composable, testable, reusable across any agent.
+  </TourFrame>
+  <TourFrame scene="principle">
+    **The principle.** The agent's only job: decide which skill to call, and
+    when. Thin agent, fat skill layer.
+  </TourFrame>
+</DiagramTour>
 
-<ScrollScene>
-  <ScrollSceneSticky>
-    <ArchitectureDiagram spec={buildSkillsDiagram} />
-  </ScrollSceneSticky>
-  <ScrollSceneSteps>
+## The human in the loop
 
-    <Step trigger="engineer">
-      ### L1 · The human in the loop
+You are the AI engineer. You write `SKILL.md` files, configure MCP
+servers, and run evals. The thing you do **not** do is write business
+logic inside the agent — not in prompts, not in a giant system message,
+not in a tangle of conditional branches. Logic lives one layer down.
 
-      You are the AI engineer. You write `SKILL.md` files, configure MCP
-      servers, and run evals. The thing you do **not** do is write business
-      logic inside the agent — not in prompts, not in a giant system message,
-      not in a tangle of conditional branches. Logic lives one layer down.
-    </Step>
+## The orchestrator
 
-    <Step trigger="agent">
-      ### L2 · The orchestrator
+Claude — or whichever model you're using — is the orchestrator. Its
+whole job is to read the available skills, decide which one to call,
+and sequence calls toward the user's goal. Zero business logic. Zero
+bespoke prompts for individual capabilities. Move a skill, add a skill,
+change a skill — the agent layer stays untouched.
 
-      Claude — or whichever model you're using — is the orchestrator. Its
-      whole job is to read the available skills, decide which one to call,
-      and sequence calls toward the user's goal. Zero business logic.
-      Zero bespoke prompts for individual capabilities. Move a skill, add a
-      skill, change a skill — the agent layer stays untouched.
-    </Step>
+## Tools vs skills
 
-    <Step trigger="tools">
-      ### Tools vs skills
+MCP servers give the agent reach: filesystem access, APIs, search. But a
+tool is not a skill. Tools are primitives — verbs like `read`, `fetch`,
+`query`. Skills are compositions of tools with a contract: inputs,
+outputs, error modes, an eval. If you can't write a passing test for it,
+it's a tool, not a skill.
 
-      MCP servers give the agent reach: filesystem access, APIs, search. But a
-      tool is not a skill. Tools are primitives — verbs like `read`, `fetch`,
-      `query`. Skills are compositions of tools with a contract: inputs,
-      outputs, error modes, an eval. If you can't write a passing test for it,
-      it's a tool, not a skill.
-    </Step>
+## The persistent layer
 
-    <Step trigger="filesystem">
-      ### L3 · The persistent layer
+The filesystem is not a detail. It's where `SKILL.md` files live, where
+outputs are written, where the context the agent reasons over is
+durable. Once you make this choice — "outputs are files, state is
+files" — a lot of the usual agent-framework machinery (memory stores,
+vector DBs, orchestration engines) becomes optional. The filesystem is
+the orchestration engine.
 
-      The filesystem is not a detail. It's where `SKILL.md` files live, where
-      outputs are written, where the context the agent reasons over is
-      durable. Once you make this choice — "outputs are files, state is
-      files" — a lot of the usual agent-framework machinery (memory stores,
-      vector DBs, orchestration engines) becomes optional. The filesystem is
-      the orchestration engine.
-    </Step>
+## The skills layer
 
-    <Step trigger="skills">
-      ### L4 · The skills layer
-
-      Each skill is a self-contained unit, defined in a `SKILL.md` with the
-      prompt, the input contract, the expected output shape, and its eval
-      cases. You ship a new capability by dropping in a new file. You
-      debug a broken capability by running its eval. A skill that passes its
-      eval in isolation will pass inside the agent.
-    </Step>
-
-    <Step trigger="principle">
-      ### The principle
-
-      Your agent's only job is to decide which skill to call — and when.
-      Everything else — parsing, writing, summarising, analysing, API calls,
-      database queries — is a skill. Thin agent, fat skill layer. The
-      opposite of how most teams start.
-    </Step>
-
-  </ScrollSceneSteps>
-</ScrollScene>
+Each skill is a self-contained unit, defined in a `SKILL.md` with the
+prompt, the input contract, the expected output shape, and its eval
+cases. You ship a new capability by dropping in a new file. You debug
+a broken capability by running its eval. A skill that passes its eval
+in isolation will pass inside the agent.
 
 ## Three consequences
 

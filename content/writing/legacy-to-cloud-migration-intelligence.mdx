@@ -9,50 +9,34 @@ diagramId: legacy-migration
 import { legacyMigrationDiagram } from '@/diagrams/legacy-migration'
 
 > **Placeholder article.** Real content to follow. The structure below is
-> real — it's the shape every migration-intelligence piece will take — but
-> the words are scaffolding.
+> real — it's the shape every migration-intelligence piece will take —
+> but the words are scaffolding.
 
 Most cloud migrations burn effort at the wrong end of the pipeline. Teams
 deploy a lift-and-shift machine before they've answered the question the
 migration exists to answer: *what should the target look like?* Not the
-servers — the shape. Services, boundaries, data ownership, failure domains.
+servers — the shape. Services, boundaries, data ownership, failure
+domains.
 
-LLMs are unreasonably good at reading a legacy codebase and proposing a
-cloud shape, if you constrain the task. The pipeline below is the pattern
-I've used across three regulated migrations.
-
-<ScrollScene>
-  <ScrollSceneSticky>
-    <ArchitectureDiagram spec={legacyMigrationDiagram} />
-  </ScrollSceneSticky>
-  <ScrollSceneSteps>
-
-    <Step trigger="ingest">
-      ### Ingest — structure first
-
-      Before any reasoning, you need the legacy code in a structured form.
-      Classify every module: domain, dependency, IO surface. The output is a
-      graph, not a summary.
-    </Step>
-
-    <Step trigger="reason">
-      ### Reason — with patterns, not vibes
-
-      The LLM's job is to map the graph onto known patterns (strangler,
-      anti-corruption layer, read-side projection) with evidence. Every
-      decision ends up with a citation to the legacy code it came from.
-    </Step>
-
-    <Step trigger="plan">
-      ### Plan — runbooks, not slide decks
-
-      The output is an incremental plan the migration team can actually
-      execute: IaC scaffolding, service boundaries, migration waves, the
-      data-gravity calls. Runbooks, not slide decks.
-    </Step>
-
-  </ScrollSceneSteps>
-</ScrollScene>
+<DiagramTour spec={legacyMigrationDiagram}>
+  <TourFrame scene="overview">
+    **Read the legacy. Reason about the shape. Emit a plan.** Three stages,
+    one decision: what should the cloud version look like?
+  </TourFrame>
+  <TourFrame scene="ingest">
+    **Ingest — structure first.** Classify every legacy module. Output is
+    a graph of domain, dependency, and I/O surface — not a summary.
+  </TourFrame>
+  <TourFrame scene="reason">
+    **Reason — patterns, not vibes.** LLM maps the graph onto known
+    patterns (strangler, anti-corruption layer, read-side projection).
+    Every decision cites the legacy code it came from.
+  </TourFrame>
+  <TourFrame scene="plan">
+    **Plan — runbooks, not slide decks.** IaC scaffolding, service
+    boundaries, migration waves, data-gravity calls. Executable output.
+  </TourFrame>
+</DiagramTour>
 
 The interesting part is not the move. The interesting part is the
 *decision about what to move into*. This pipeline makes that decision

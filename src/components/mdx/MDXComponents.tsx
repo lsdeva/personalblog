@@ -3,19 +3,26 @@ import { Callout } from './Callout'
 import { Code } from './Code'
 import { Figure } from './Figure'
 import { ArchitectureDiagram } from '@/components/diagram/ArchitectureDiagram'
+import { DiagramTour } from '@/components/diagram/DiagramTour'
+import { TourFrame } from '@/components/diagram/TourFrame'
 import { ScrollScene, ScrollSceneSticky, ScrollSceneSteps } from '@/components/scroll/ScrollScene'
 import { Step } from '@/components/scroll/Step'
 
-// Map HTML tags → styled equivalents + expose custom components to MDX.
-// Only the tag overrides need explicit typing; custom components are passed through.
 export const mdxComponents: MDXComponents = {
-  // Tag-level overrides: the article body uses the .prose-article class on its
-  // wrapper, so we don't need per-tag styling here — inherit from CSS.
-  // Custom components available in any .mdx file:
+  // Content components
   Callout,
   Code,
   Figure,
+
+  // Diagram tour (current default for articles)
+  DiagramTour,
+  TourFrame,
+
+  // Raw diagram (for static embeds)
   ArchitectureDiagram,
+
+  // Legacy scroll-scene primitive — still exposed for any article that
+  // wants the side-by-side layout. Rollback point: tag v1-sidebar-scroll.
   ScrollScene,
   ScrollSceneSticky,
   ScrollSceneSteps,

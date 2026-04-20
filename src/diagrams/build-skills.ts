@@ -11,22 +11,8 @@ export const buildSkillsDiagram: DiagramSpec = {
   nodes: [
     { id: 'engineer', label: 'AI Engineer', x: 1, y: 0, tag: 'L1', variant: 'primary' },
     { id: 'agent', label: 'Claude', sublabel: 'agent', x: 1, y: 1, tag: 'L2', variant: 'primary' },
-    {
-      id: 'mcp-tools',
-      label: 'MCP',
-      sublabel: 'tools',
-      x: 0,
-      y: 1,
-      variant: 'secondary',
-    },
-    {
-      id: 'mcp-apis',
-      label: 'MCP',
-      sublabel: 'APIs',
-      x: 2,
-      y: 1,
-      variant: 'secondary',
-    },
+    { id: 'mcp-tools', label: 'MCP', sublabel: 'tools', x: 0, y: 1, variant: 'secondary' },
+    { id: 'mcp-apis', label: 'MCP', sublabel: 'APIs', x: 2, y: 1, variant: 'secondary' },
     {
       id: 'filesystem',
       label: 'Filesystem',
@@ -82,9 +68,7 @@ export const buildSkillsDiagram: DiagramSpec = {
   ],
 
   scenes: {
-    overview: {
-      caption: 'Four layers. One direction of intent.',
-    },
+    overview: { focus: 'full', caption: 'Four layers. One direction of intent.' },
     engineer: {
       highlight: ['engineer'],
       dim: [
@@ -96,44 +80,40 @@ export const buildSkillsDiagram: DiagramSpec = {
         'skill-summarize',
         'skill-analyze',
       ],
-      caption: 'The human in the loop.',
+      focus: { nodes: ['engineer', 'agent'], padding: 80 },
     },
     agent: {
       highlight: ['engineer', 'agent'],
       activeEdges: ['engineer->agent'],
       dim: ['skill-summarize', 'skill-analyze'],
-      caption: 'The orchestrator — holds intent, not logic.',
+      focus: { nodes: ['engineer', 'agent'], padding: 60 },
     },
     tools: {
       highlight: ['agent', 'mcp-tools', 'mcp-apis'],
       activeEdges: ['agent->mcp-tools', 'agent->mcp-apis'],
-      dim: [
-        'engineer',
-        'filesystem',
-        'skill-io',
-        'skill-transform',
-        'skill-summarize',
-        'skill-analyze',
-      ],
-      caption: 'Tools extend reach — but tools are not skills.',
+      dim: ['engineer', 'filesystem', 'skill-summarize', 'skill-analyze'],
+      focus: { nodes: ['mcp-tools', 'agent', 'mcp-apis'], padding: 50 },
     },
     filesystem: {
       highlight: ['agent', 'filesystem'],
       activeEdges: ['agent->filesystem'],
       dim: ['mcp-tools', 'mcp-apis', 'skill-summarize', 'skill-analyze'],
-      caption: 'The persistent layer. Source of truth.',
+      focus: { nodes: ['agent', 'filesystem'], padding: 60 },
     },
     skills: {
       highlight: ['filesystem', 'skill-io', 'skill-transform'],
       activeEdges: ['filesystem->skill-io', 'filesystem->skill-transform'],
       pulse: ['skill-io', 'skill-transform'],
       dim: ['engineer', 'agent', 'mcp-tools', 'mcp-apis'],
-      caption: 'Self-contained. Composable. Testable.',
+      focus: {
+        nodes: ['filesystem', 'skill-io', 'skill-transform', 'skill-summarize', 'skill-analyze'],
+        padding: 40,
+      },
     },
     principle: {
       highlight: ['engineer', 'agent', 'filesystem', 'skill-io', 'skill-transform'],
       activeEdges: ['engineer->agent', 'agent->filesystem', 'filesystem->skill-io'],
-      caption: "The agent's only job: decide which skill to call — and when.",
+      focus: 'full',
     },
   },
 }
