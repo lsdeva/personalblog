@@ -93,9 +93,15 @@ interface ScrollSceneStickyProps {
 }
 
 export function ScrollSceneSticky({ children, className }: ScrollSceneStickyProps) {
+  // Mobile: natural flow, diagram renders once near the top of the scene.
+  //         Scroll-scrub choreography would cramp text into a sliver of
+  //         viewport, so we skip it and let the prose read normally.
+  // Desktop (md+): sticky sidebar pinned to the viewport, prose scrolls
+  //                alongside — steps crossing the midpoint animate the
+  //                diagram through its scenes.
   return (
     <div
-      className={`sticky top-0 flex h-[80vh] min-h-[480px] items-center justify-center md:h-screen ${className ?? ''}`}
+      className={`flex items-center justify-center py-6 md:sticky md:top-0 md:h-screen md:min-h-[480px] md:py-0 ${className ?? ''}`}
     >
       <div className="w-full">{children}</div>
     </div>

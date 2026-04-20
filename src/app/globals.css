@@ -45,27 +45,26 @@
     position: relative;
   }
 
-  /* Subtle texture — decorative. Dark uses white noise (overlay); light
-     uses a faint grid that matches the pre-rebuild identity. */
+  /* Subtle texture — decorative. Light default uses a faint grid that
+     matches the pre-rebuild identity; dark uses a white-noise overlay. */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background-image: url('/noise.svg');
-    background-size: 200px 200px;
-    opacity: 0.035;
-    pointer-events: none;
-    z-index: 1;
-    mix-blend-mode: overlay;
-  }
-
-  [data-theme='light'] body::before {
     background-image:
       linear-gradient(var(--color-border) 1px, transparent 1px),
       linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
     background-size: 48px 48px;
     opacity: 0.5;
-    mix-blend-mode: normal;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  [data-theme='dark'] body::before {
+    background-image: url('/noise.svg');
+    background-size: 200px 200px;
+    opacity: 0.035;
+    mix-blend-mode: overlay;
   }
 
   ::selection {

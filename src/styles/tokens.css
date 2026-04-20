@@ -1,20 +1,20 @@
 /* Design tokens — imported into globals.css via @theme.
-   Dark is the default. [data-theme='light'] overrides the color tokens
-   without touching layout, typography, or motion.
+   Light is the default (cream + coral, the pre-rebuild identity).
+   [data-theme='dark'] overrides into the dark/amber palette.
    Both themes verified for AA body / AAA heading contrast. */
 
 @theme {
-  /* colors — dark (default) */
-  --color-bg: #0a0a0b;
-  --color-surface: #111113;
-  --color-surface-hi: #17171a;
-  --color-border: #2a2a2f;
-  --color-border-hi: #3a3a42;
-  --color-fg: #ededea; /* warm off-white */
-  --color-muted: #9a968e;
-  --color-accent: #d4a574; /* muted amber / engineering-doc gold */
-  --color-accent-dim: #8a6d4c;
-  --color-ink: #ffffff;
+  /* colors — light (default) */
+  --color-bg: #f5f0e8;
+  --color-surface: #efe9dd;
+  --color-surface-hi: #e8dfcd;
+  --color-border: rgba(13, 13, 13, 0.12);
+  --color-border-hi: #0d0d0d;
+  --color-fg: #0d0d0d;
+  --color-muted: #5a5147;
+  --color-accent: #e8412a;
+  --color-accent-dim: #c43520;
+  --color-ink: #0d0d0d;
 
   /* typography (wired by next/font → CSS variables on <html>) */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
@@ -31,16 +31,16 @@
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* light theme — cream + coral, mirroring the pre-rebuild identity */
-:root[data-theme='light'] {
-  --color-bg: #f5f0e8;
-  --color-surface: #efe9dd;
-  --color-surface-hi: #e8dfcd;
-  --color-border: rgba(13, 13, 13, 0.12);
-  --color-border-hi: #0d0d0d;
-  --color-fg: #0d0d0d;
-  --color-muted: #5a5147;
-  --color-accent: #e8412a;
-  --color-accent-dim: #c43520;
-  --color-ink: #0d0d0d;
+/* dark theme — engineering-doc aesthetic */
+:root[data-theme='dark'] {
+  --color-bg: #0a0a0b;
+  --color-surface: #111113;
+  --color-surface-hi: #17171a;
+  --color-border: #2a2a2f;
+  --color-border-hi: #3a3a42;
+  --color-fg: #ededea;
+  --color-muted: #9a968e;
+  --color-accent: #d4a574;
+  --color-accent-dim: #8a6d4c;
+  --color-ink: #ffffff;
 }

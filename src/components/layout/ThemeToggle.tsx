@@ -7,10 +7,10 @@ type Theme = 'dark' | 'light'
 const STORAGE_KEY = 'theme'
 
 function readStoredTheme(): Theme {
-  if (typeof document === 'undefined') return 'dark'
+  if (typeof document === 'undefined') return 'light'
   const attr = document.documentElement.dataset.theme
-  if (attr === 'light') return 'light'
-  return 'dark'
+  if (attr === 'dark') return 'dark'
+  return 'light'
 }
 
 // Theme toggle — flips [data-theme] on <html> and persists. The <head>
@@ -28,7 +28,13 @@ export function ThemeToggle() {
   function toggle() {
     const next: Theme = theme === 'dark' ? 'light' : 'dark'
     setTheme(next)
-    document.documentElement.dataset.theme = next
+    // Light is the default — for clean DOM, remove the attribute rather
+    // than setting data-theme="light".
+    if (next === 'light') {
+      delete document.documentElement.dataset.theme
+    } else {
+      document.documentElement.dataset.theme = next
+    }
     try {
       localStorage.setItem(STORAGE_KEY, next)
     } catch {

@@ -163,8 +163,7 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
         role="img"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="h-auto w-full max-w-[560px]"
-        style={{ maxHeight: '70vh' }}
+        className="h-auto w-full max-w-[560px] max-h-[55vh] md:max-h-[70vh]"
       >
         <title id={titleId}>{spec.title}</title>
 

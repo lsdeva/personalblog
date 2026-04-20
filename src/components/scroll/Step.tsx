@@ -25,7 +25,7 @@ export function Step({ trigger, children, className }: StepProps) {
     <div
       ref={ref}
       data-step={trigger}
-      className={`flex min-h-[80vh] flex-col justify-center py-16 ${className ?? ''}`}
+      className={`flex flex-col py-8 md:min-h-[80vh] md:justify-center md:py-16 ${className ?? ''}`}
     >
       <div className="max-w-[48ch]">{children}</div>
     </div>
