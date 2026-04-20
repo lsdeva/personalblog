@@ -229,6 +229,17 @@
   }
 }
 
+/* Nav middle slot: shows the current article title while reading.
+   Empty-but-present when no article is in focus so the nav layout doesn't shift. */
+.nav-title-slot {
+  opacity: 0;
+  transition: opacity 300ms var(--ease-out-quart);
+}
+
+.nav-title-slot[data-visible='true'] {
+  opacity: 1;
+}
+
 /* Reduced motion: disable GSAP/Lenis-driven effects, keep content visible. */
 @media (prefers-reduced-motion: reduce) {
   html.lenis.lenis-smooth {

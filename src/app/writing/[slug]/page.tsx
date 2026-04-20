@@ -45,10 +45,12 @@ export default async function ArticlePage({ params }: PageProps) {
 
   return (
     <LenisProvider>
-      <ArticleHeader frontmatter={meta.frontmatter} readingMinutes={meta.readingMinutes} />
-      <article className="prose-article">
-        <Content />
-      </article>
+      <div data-article-section data-article-title={meta.frontmatter.title}>
+        <ArticleHeader frontmatter={meta.frontmatter} readingMinutes={meta.readingMinutes} />
+        <article className="prose-article">
+          <Content />
+        </article>
+      </div>
       <ArticleFooterCTA />
     </LenisProvider>
   )

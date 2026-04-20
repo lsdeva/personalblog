@@ -25,5 +25,5 @@ Thumbs.db
 # typescript
 *.tsbuildinfo
 
-# claude code
-.claude/settings.local.json
+# claude code — local assistant settings, not for the public repo
+.claude/

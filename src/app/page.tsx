@@ -55,6 +55,8 @@ export default async function HomePage() {
         <section
           key={slug}
           id={slug}
+          data-article-section
+          data-article-title={frontmatter.title}
           className="border-t border-[var(--color-border)] pt-12 pb-24 md:pt-16"
           aria-labelledby={`${slug}-heading`}
         >
