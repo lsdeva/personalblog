@@ -23,7 +23,10 @@
       "Bash(curl -s https://lsdeva.github.io/personalblog/CNAME)",
       "Bash(curl -s https://lsdeva.github.io/personalblog/)",
       "Bash(curl -sI https://lsdeva.github.io/personalblog/writing/)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
     ],
     "additionalDirectories": [
       "D:\\dev\\personalblog\\src\\app\\writing"
