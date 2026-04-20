@@ -1,0 +1,63 @@
+---
+title: FHIR integration on EKS
+description: How a minimal FHIR server runs inside a Kubernetes cluster under real healthcare compliance — what the request path looks like, and where the auditability lives.
+publishedAt: '2026-02-22'
+tags: [fhir, healthcare, eks]
+diagramId: fhir-eks
+---
+
+import { fhirEksDiagram } from '@/diagrams/fhir-eks'
+
+> **Placeholder article.** Real content to follow. The structure below is
+> real — it's the shape every FHIR-on-Kubernetes piece will take — but the
+> words are scaffolding.
+
+FHIR is what healthcare integration looks like when it's well-engineered.
+The spec is large, but the runtime shape of a production FHIR server is
+small and opinionated — an ingress surface, a stateless server, a regional
+database, and a durable audit trail. Getting it wrong means failing an audit.
+
+The diagram below is the default shape I reach for on a regulated EKS
+cluster in Singapore.
+
+<ScrollScene>
+  <ScrollSceneSticky>
+    <ArchitectureDiagram spec={fhirEksDiagram} />
+  </ScrollSceneSticky>
+  <ScrollSceneSteps>
+
+    <Step trigger="edge">
+      ### Edge — mTLS and rate-limits
+
+      Every call lands on an ingress proxy that terminates mTLS and enforces
+      per-client rate limits. Authentication is out of the FHIR server's
+      job description.
+    </Step>
+
+    <Step trigger="server">
+      ### Server — stateless by design
+
+      The FHIR server pods are stateless. Horizontal scaling is a matter of
+      replica count. Persistent state lives in the regional Postgres with
+      HA failover.
+    </Step>
+
+    <Step trigger="audit">
+      ### Audit — append-only, always
+
+      Every state-changing request writes to an append-only audit log
+      before it's considered complete. This is the line between a system
+      that can pass an audit and one that can't.
+    </Step>
+
+  </ScrollSceneSteps>
+</ScrollScene>
+
+The hard part isn't the FHIR server. The hard part is making the whole
+environment around it — identity, network policy, audit retention, backup
+RPO — live up to the integration spec.
+
+<Callout tone="info" title="Coming soon">
+  Real content for this piece is being written from an active engagement.
+  Come back for the full version.
+</Callout>
