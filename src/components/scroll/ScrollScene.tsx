@@ -77,10 +77,7 @@ export function ScrollScene({ children, className }: ScrollSceneProps) {
     <ScrollSceneContext.Provider
       value={{ activeStep, progress, prefersReducedMotion, registerStep }}
     >
-      <div
-        ref={containerRef}
-        className={`full-bleed relative grid grid-cols-1 gap-x-16 md:grid-cols-2 ${className ?? ''}`}
-      >
+      <div ref={containerRef} className={`full-bleed relative ${className ?? ''}`}>
         {children}
       </div>
     </ScrollSceneContext.Provider>
@@ -92,16 +89,21 @@ interface ScrollSceneStickyProps {
   className?: string
 }
 
+// Diagram-centric layout: on desktop, the diagram pins to the top of the
+// viewport as a large centered panel. Prose steps scroll through the space
+// below, each flagging which part of the diagram they describe. On mobile,
+// sticky is skipped — diagram renders once at natural flow and steps follow
+// as normal prose so nothing overlaps.
 export function ScrollSceneSticky({ children, className }: ScrollSceneStickyProps) {
-  // Mobile: natural flow, diagram renders once near the top of the scene.
-  //         Scroll-scrub choreography would cramp text into a sliver of
-  //         viewport, so we skip it and let the prose read normally.
-  // Desktop (md+): sticky sidebar pinned to the viewport, prose scrolls
-  //                alongside — steps crossing the midpoint animate the
-  //                diagram through its scenes.
   return (
     <div
-      className={`flex items-center justify-center py-6 md:sticky md:top-0 md:h-screen md:min-h-[480px] md:py-0 ${className ?? ''}`}
+      className={`
+        flex items-center justify-center py-6
+        md:sticky md:top-[4rem] md:z-10 md:h-[55vh] md:border-b
+        md:border-[var(--color-border)] md:bg-[var(--color-bg)]/90
+        md:py-4 md:backdrop-blur-sm
+        ${className ?? ''}
+      `}
     >
       <div className="w-full">{children}</div>
     </div>
@@ -114,5 +116,7 @@ interface ScrollSceneStepsProps {
 }
 
 export function ScrollSceneSteps({ children, className }: ScrollSceneStepsProps) {
-  return <div className={`flex flex-col ${className ?? ''}`}>{children}</div>
+  return (
+    <div className={`mx-auto flex max-w-[60ch] flex-col px-6 ${className ?? ''}`}>{children}</div>
+  )
 }

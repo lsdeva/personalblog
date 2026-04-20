@@ -73,36 +73,41 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
 
     const tl = gsap.timeline({ defaults: { duration, ease } })
 
-    // Nodes
+    // Nodes — with the diagram now centered and primary, emphasis is stronger:
+    // highlighted nodes hold full opacity and get a soft static ring; pulsed
+    // nodes pulse; non-highlighted recede to 0.5; dimmed to 0.15.
     spec.nodes.forEach((node) => {
       const el = root.querySelector<SVGGElement>(`[data-node="${node.id}"]`)
       if (!el) return
       const isLit = hasHighlight ? highlights.has(node.id) : true
       const isDimmed = dims.has(node.id)
+      const isPulsed = pulses.has(node.id)
       tl.to(
         el,
         {
-          opacity: isDimmed ? 0.25 : isLit ? 1 : 0.45,
+          opacity: isDimmed ? 0.15 : isLit ? 1 : 0.5,
         },
         0,
       )
-      // Pulse: use a separate infinite sub-tween on the inner highlight ring.
       const ring = el.querySelector<SVGRectElement>('[data-ring]')
       if (ring) {
         gsap.killTweensOf(ring)
-        if (pulses.has(node.id) && !prefersReducedMotion) {
+        if (isPulsed && !prefersReducedMotion) {
           gsap.fromTo(
             ring,
             { opacity: 0.9, scale: 1 },
             {
               opacity: 0,
-              scale: 1.08,
+              scale: 1.1,
               duration: 1.4,
               ease: 'power2.out',
               transformOrigin: 'center center',
               repeat: -1,
             },
           )
+        } else if (isLit && hasHighlight) {
+          // Soft static ring to point to the active component.
+          gsap.to(ring, { opacity: 0.55, scale: 1, duration })
         } else {
           gsap.set(ring, { opacity: 0, scale: 1 })
         }
@@ -163,7 +168,7 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
         role="img"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="h-auto w-full max-w-[560px] max-h-[55vh] md:max-h-[70vh]"
+        className="h-auto w-full max-w-[min(760px,92vw)] max-h-[55vh] md:max-h-[48vh]"
       >
         <title id={titleId}>{spec.title}</title>
 
