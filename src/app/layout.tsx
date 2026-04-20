@@ -1,0 +1,52 @@
+import type { Metadata } from 'next'
+import './globals.css'
+import { inter, serifDisplay, jetbrainsMono } from '@/lib/fonts'
+import { Nav } from '@/components/layout/Nav'
+import { Footer } from '@/components/layout/Footer'
+import { ContactCTA } from '@/components/layout/ContactCTA'
+import { site } from '@/lib/site'
+
+export const metadata: Metadata = {
+  metadataBase: new URL(site.url),
+  title: {
+    default: site.title,
+    template: `%s — ${site.name}`,
+  },
+  description: site.description,
+  authors: [{ name: site.author.name, url: site.author.linkedin }],
+  openGraph: {
+    title: site.title,
+    description: site.description,
+    url: site.url,
+    siteName: site.name,
+    type: 'website',
+    locale: 'en_SG',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: site.title,
+    description: site.description,
+  },
+  robots: { index: true, follow: true },
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html
+      lang="en"
+      className={`${inter.variable} ${serifDisplay.variable} ${jetbrainsMono.variable}`}
+    >
+      <body>
+        <a href="#main" className="sr-only-focusable fixed top-2 left-2 z-50 border border-[var(--color-accent)] bg-[var(--color-bg)] px-3 py-2 font-[var(--font-mono)] text-xs text-[var(--color-accent)]">
+          Skip to content
+        </a>
+        <Nav />
+        <main id="main" className="relative z-10 pt-16">
+          {children}
+        </main>
+        <Footer />
+        <ContactCTA variant="fixed" />
+      </body>
+    </html>
+  )
+}

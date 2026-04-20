@@ -1,0 +1,29 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# next.js build
+.next/
+out/
+
+# env
+.env*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# editor / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# typescript
+*.tsbuildinfo
+
+# claude code
+.claude/settings.local.json

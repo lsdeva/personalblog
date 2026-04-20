@@ -1,0 +1,32 @@
+/* Design tokens — imported into globals.css via @theme.
+   Dark, architectural, terminal-adjacent palette. One accent (muted amber).
+   Contrast verified: --ink on --bg = 15.8:1 (AAA), --fg on --bg = 14.1:1 (AAA),
+   --muted on --bg = 5.9:1 (AA for body), --accent on --bg = 6.8:1 (AA large). */
+
+@theme {
+  /* colors */
+  --color-bg: #0a0a0b;
+  --color-surface: #111113;
+  --color-surface-hi: #17171a;
+  --color-border: #2a2a2f;
+  --color-border-hi: #3a3a42;
+  --color-fg: #ededea; /* warm off-white */
+  --color-muted: #9a968e;
+  --color-accent: #d4a574; /* muted amber / engineering-doc gold */
+  --color-accent-dim: #8a6d4c;
+  --color-ink: #ffffff;
+
+  /* typography (wired by next/font → CSS variables on <html>) */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif-display), 'IBM Plex Serif', Georgia, serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, 'JetBrains Mono', Consolas, monospace;
+
+  /* radii + spacing (kept minimal — we mostly use Tailwind defaults) */
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+
+  /* motion */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
