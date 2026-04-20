@@ -196,7 +196,7 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
         role="img"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="h-auto w-full max-w-[min(760px,92vw)] max-h-[55vh] md:max-h-[48vh]"
+        className="h-auto w-full max-w-[min(1040px,92vw)] max-h-[58vh] md:max-h-[62vh]"
       >
         <title id={titleId}>{spec.title}</title>
 

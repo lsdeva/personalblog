@@ -102,7 +102,7 @@ export function ScrollSceneSticky({ children, className }: ScrollSceneStickyProp
     <div
       className={`
         flex items-center justify-center py-6
-        md:sticky md:top-[4rem] md:z-10 md:h-[55vh] md:border-b
+        md:sticky md:top-[4rem] md:z-10 md:h-[68vh] md:border-b
         md:border-[var(--color-border)] md:py-4
         ${className ?? ''}
       `}
