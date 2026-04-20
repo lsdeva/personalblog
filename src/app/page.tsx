@@ -1,18 +1,34 @@
 import Link from 'next/link'
 import { getAllArticles } from '@/content/loader'
-import { ScrollRevealStack } from '@/components/home/ScrollRevealStack'
-import { ArticleCard } from '@/components/home/ArticleCard'
+import { LenisProvider } from '@/components/scroll/LenisProvider'
+import { ArticleHeader } from '@/components/article/ArticleHeader'
+import type { ComponentType } from 'react'
 
-export default function HomePage() {
+interface InlineArticle {
+  slug: string
+  frontmatter: import('@/content/types').ArticleFrontmatter
+  readingMinutes: number
+  Content: ComponentType
+}
+
+export default async function HomePage() {
   const articles = getAllArticles()
+  const sections: InlineArticle[] = await Promise.all(
+    articles.map(async (a) => {
+      const mod = await import(`../../content/writing/${a.slug}.mdx`)
+      return {
+        slug: a.slug,
+        frontmatter: a.frontmatter,
+        readingMinutes: a.readingMinutes,
+        Content: mod.default as ComponentType,
+      }
+    }),
+  )
 
   return (
-    <div className="home-sequence">
-      <section
-        data-reveal
-        data-hero
-        className="flex min-h-[100svh] snap-start items-center px-6"
-      >
+    <LenisProvider>
+      {/* Hero — always visible, first viewport */}
+      <section className="flex min-h-[100svh] items-center px-6">
         <div className="mx-auto w-full max-w-[72rem]">
           <h1 className="text-display text-[clamp(2.5rem,7vw,5.5rem)] leading-[1.02] text-[var(--color-ink)]">
             The systems behind
@@ -24,24 +40,38 @@ export default function HomePage() {
             and the plumbing that moves a model past the demo.
           </p>
           <p className="mt-16 flex items-center gap-3 font-[var(--font-mono)] text-[0.75rem] tracking-[0.22em] text-[var(--color-muted)] uppercase">
-            <span aria-hidden="true" className="inline-block w-6 border-t border-[var(--color-muted)]" />
+            <span
+              aria-hidden="true"
+              className="inline-block w-6 border-t border-[var(--color-muted)]"
+            />
             Scroll to read
           </p>
         </div>
       </section>
 
-      <ScrollRevealStack>
-        {articles.map((article, i) => (
-          <ArticleCard
-            key={article.slug}
-            article={article}
-            index={i}
-            total={articles.length}
+      {/* Each article rendered inline — header + full MDX body.
+          Readers scroll continuously through hero → article → article → article. */}
+      {sections.map(({ slug, frontmatter, readingMinutes, Content }, i) => (
+        <section
+          key={slug}
+          id={slug}
+          className="border-t border-[var(--color-border)] pt-12 pb-24 md:pt-16"
+          aria-labelledby={`${slug}-heading`}
+        >
+          <ArticleHeader
+            frontmatter={frontmatter}
+            readingMinutes={readingMinutes}
+            variant="inline"
+            sectionIndex={i}
+            sectionTotal={sections.length}
           />
-        ))}
-      </ScrollRevealStack>
+          <article className="prose-article">
+            <Content />
+          </article>
+        </section>
+      ))}
 
-      {articles.length === 0 && (
+      {sections.length === 0 && (
         <section className="flex min-h-[50vh] items-center justify-center px-6 text-[var(--color-muted)]">
           No articles yet.
         </section>
@@ -50,7 +80,7 @@ export default function HomePage() {
       <section className="border-t border-[var(--color-border)] py-24">
         <div className="mx-auto max-w-[72rem] px-6 text-center">
           <p className="text-kicker mb-4">End of reel</p>
-          <p className="text-display text-[clamp(1.5rem,3vw,2rem)] text-[var(--color-muted)]">
+          <p className="text-display text-[clamp(1.75rem,3vw,2.25rem)] text-[var(--color-muted)]">
             That's the archive so far.
           </p>
           <div className="mt-10">
@@ -58,11 +88,11 @@ export default function HomePage() {
               href="/about/"
               className="inline-flex items-baseline gap-2 font-[var(--font-mono)] text-[0.8125rem] tracking-[0.08em] text-[var(--color-accent)]"
             >
-              About the author →
+              Let's talk →
             </Link>
           </div>
         </div>
       </section>
-    </div>
+    </LenisProvider>
   )
 }

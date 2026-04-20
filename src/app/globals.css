@@ -229,45 +229,10 @@
   }
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Home scroll sequence — each article gets a full viewport, fades in as
-   it enters the viewport via IntersectionObserver (no JS animation lib).
-   Soft scroll-snap so section boundaries feel deliberate without trapping
-   fast scrolls.
-   ────────────────────────────────────────────────────────────── */
-
-.home-sequence {
-  scroll-snap-type: y proximity;
-}
-
-[data-reveal] {
-  opacity: 0;
-  transform: translateY(28px);
-  transition:
-    opacity 900ms var(--ease-out-expo),
-    transform 900ms var(--ease-out-expo);
-  will-change: opacity, transform;
-}
-
-[data-reveal][data-in-view='true'] {
-  opacity: 1;
-  transform: translateY(0);
-}
-
 /* Reduced motion: disable GSAP/Lenis-driven effects, keep content visible. */
 @media (prefers-reduced-motion: reduce) {
   html.lenis.lenis-smooth {
     scroll-behavior: auto !important;
-  }
-
-  .home-sequence {
-    scroll-snap-type: none;
-  }
-
-  [data-reveal] {
-    opacity: 1;
-    transform: none;
-    transition: none;
   }
 
   *,
