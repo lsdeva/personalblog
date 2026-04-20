@@ -9,7 +9,7 @@ export function Footer() {
     >
       <div className="mx-auto flex max-w-[72rem] flex-col gap-4 px-6 text-[0.8125rem] md:flex-row md:items-center md:justify-between">
         <p className="font-[var(--font-mono)] text-[var(--color-muted)]">
-          © {new Date().getFullYear()} {site.author.name} · {site.author.location}
+          © {new Date().getFullYear()} {site.author.name}
         </p>
         <ul className="flex gap-6 font-[var(--font-mono)]">
           <li>

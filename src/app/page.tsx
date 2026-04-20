@@ -1,9 +1,5 @@
-// Home — full content lands in step 6. This stub renders a clean hero + article
-// list so the scaffold is runnable end-to-end before content is written.
-
 import Link from 'next/link'
 import { getAllArticles } from '@/content/loader'
-import { ContactCTA } from '@/components/layout/ContactCTA'
 import { site } from '@/lib/site'
 
 export default function HomePage() {
@@ -11,46 +7,30 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto max-w-[72rem] px-6">
-      <section className="pt-24 pb-20 md:pt-32">
-        <p className="text-kicker mb-6">{site.author.location}</p>
+      <section className="pt-24 pb-16 md:pt-32">
         <h1 className="text-display text-[clamp(2.5rem,6vw,4.5rem)] text-[var(--color-ink)]">
-          AI integration architect for
+          The systems behind
           <br />
-          <span className="text-[var(--color-accent)]">healthcare &amp; fintech.</span>
+          <span className="text-[var(--color-accent)]">the AI hype.</span>
         </h1>
         <p className="mt-8 max-w-[52ch] text-[1.125rem] leading-relaxed text-[var(--color-muted)]">
-          I write about the systems behind the hype — the integration, the guardrails, the
-          observability, the actual architecture that moves an LLM from a demo to something you
-          can ship under audit.
+          Long-form architecture notes on AI integration — evals, failure modes, observability,
+          and the plumbing that moves a model past the demo. Read on.
         </p>
-        <div className="mt-10 flex flex-wrap items-center gap-6">
-          <ContactCTA />
-          <Link
-            href="/writing/"
-            className="font-[var(--font-mono)] text-[0.8125rem] tracking-[0.08em] text-[var(--color-muted)] transition-colors hover:text-[var(--color-accent)]"
-          >
-            Read the writing →
-          </Link>
-        </div>
       </section>
 
-      <section aria-labelledby="writing-heading" className="border-t border-[var(--color-border)] pt-16 pb-24">
-        <div className="mb-10 flex items-baseline justify-between">
-          <h2 id="writing-heading" className="text-kicker" style={{ color: 'var(--color-accent)' }}>
-            Recent writing
-          </h2>
-          <Link
-            href="/writing/"
-            className="font-[var(--font-mono)] text-[0.75rem] tracking-[0.08em] text-[var(--color-muted)] transition-colors hover:text-[var(--color-accent)]"
-          >
-            All →
-          </Link>
-        </div>
+      <section
+        aria-labelledby="writing-heading"
+        className="border-t border-[var(--color-border)] pt-16 pb-24"
+      >
+        <h2 id="writing-heading" className="text-kicker mb-10" style={{ color: 'var(--color-accent)' }}>
+          Recent writing
+        </h2>
         <ul className="divide-y divide-[var(--color-border)]">
           {articles.length === 0 && (
             <li className="py-8 text-[var(--color-muted)]">No articles yet.</li>
           )}
-          {articles.slice(0, 6).map(({ slug, frontmatter, readingMinutes }) => (
+          {articles.map(({ slug, frontmatter, readingMinutes }) => (
             <li key={slug}>
               <Link
                 href={`/writing/${slug}/`}
@@ -83,7 +63,7 @@ export default function HomePage() {
       </section>
 
       <section className="border-t border-[var(--color-border)] pt-16 pb-24">
-        <p className="text-kicker mb-6">About</p>
+        <p className="text-kicker mb-6">About the author</p>
         <p className="max-w-[60ch] text-[1.0625rem] leading-relaxed text-[var(--color-fg)]">
           {site.author.bio[0]} {site.author.bio[1]} {site.author.bio[2]}
         </p>

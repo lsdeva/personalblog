@@ -3,7 +3,6 @@ import './globals.css'
 import { inter, serifDisplay, jetbrainsMono } from '@/lib/fonts'
 import { Nav } from '@/components/layout/Nav'
 import { Footer } from '@/components/layout/Footer'
-import { ContactCTA } from '@/components/layout/ContactCTA'
 import { site } from '@/lib/site'
 
 export const metadata: Metadata = {
@@ -45,7 +44,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
         <Footer />
-        <ContactCTA variant="fixed" />
       </body>
     </html>
   )

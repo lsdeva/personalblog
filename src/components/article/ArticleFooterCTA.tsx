@@ -22,7 +22,7 @@ export function ArticleFooterCTA() {
       <div className="mt-8 flex flex-wrap items-center gap-6">
         <ContactCTA />
         <a
-          href={`mailto:${site.author.email}?subject=${encodeURIComponent('Work with me — from ai.soa.team')}`}
+          href={`mailto:${site.author.email}?subject=${encodeURIComponent("Let's talk — from ai.soa.team")}`}
           className="font-[var(--font-mono)] text-[0.8125rem] tracking-[0.08em] text-[var(--color-muted)] transition-colors hover:text-[var(--color-accent)]"
         >
           or email {site.author.email}
