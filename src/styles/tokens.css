@@ -1,10 +1,10 @@
 /* Design tokens — imported into globals.css via @theme.
-   Dark, architectural, terminal-adjacent palette. One accent (muted amber).
-   Contrast verified: --ink on --bg = 15.8:1 (AAA), --fg on --bg = 14.1:1 (AAA),
-   --muted on --bg = 5.9:1 (AA for body), --accent on --bg = 6.8:1 (AA large). */
+   Dark is the default. [data-theme='light'] overrides the color tokens
+   without touching layout, typography, or motion.
+   Both themes verified for AA body / AAA heading contrast. */
 
 @theme {
-  /* colors */
+  /* colors — dark (default) */
   --color-bg: #0a0a0b;
   --color-surface: #111113;
   --color-surface-hi: #17171a;
@@ -21,7 +21,7 @@
   --font-serif: var(--font-serif-display), 'IBM Plex Serif', Georgia, serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, 'JetBrains Mono', Consolas, monospace;
 
-  /* radii + spacing (kept minimal — we mostly use Tailwind defaults) */
+  /* radii + spacing */
   --radius-none: 0;
   --radius-sm: 2px;
   --radius-md: 4px;
@@ -29,4 +29,18 @@
   /* motion */
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* light theme — cream + coral, mirroring the pre-rebuild identity */
+:root[data-theme='light'] {
+  --color-bg: #f5f0e8;
+  --color-surface: #efe9dd;
+  --color-surface-hi: #e8dfcd;
+  --color-border: rgba(13, 13, 13, 0.12);
+  --color-border-hi: #0d0d0d;
+  --color-fg: #0d0d0d;
+  --color-muted: #5a5147;
+  --color-accent: #e8412a;
+  --color-accent-dim: #c43520;
+  --color-ink: #0d0d0d;
 }

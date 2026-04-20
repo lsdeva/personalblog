@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { site } from '@/lib/site'
+import { ThemeToggle } from './ThemeToggle'
 
 // CSS-only hover/focus transitions. Framer Motion is reserved for pages that
 // already ship JS (article pages), so the home bundle stays under its budget.
@@ -77,26 +78,33 @@ export function Nav() {
           </span>
         </div>
 
-        <ul className="ml-auto flex shrink-0 items-center gap-7 md:ml-0">
-          {site.nav.map((item) => {
-            const isActive = pathname.startsWith(item.href.replace(/\/$/, ''))
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`font-[var(--font-mono)] text-[0.8125rem] tracking-[0.04em] transition-colors duration-150 ${
-                    isActive
-                      ? 'text-[var(--color-accent)]'
-                      : 'text-[var(--color-muted)] hover:text-[var(--color-ink)]'
-                  }`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+        <div className="ml-auto flex shrink-0 items-center gap-6 md:ml-0">
+          <ul className="flex items-center gap-7">
+            {site.nav.map((item) => {
+              const isActive = pathname.startsWith(item.href.replace(/\/$/, ''))
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`font-[var(--font-mono)] text-[0.8125rem] tracking-[0.04em] transition-colors duration-150 ${
+                      isActive
+                        ? 'text-[var(--color-accent)]'
+                        : 'text-[var(--color-muted)] hover:text-[var(--color-ink)]'
+                    }`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+          <span
+            aria-hidden="true"
+            className="hidden h-4 w-px bg-[var(--color-border)] md:inline-block"
+          />
+          <ThemeToggle />
+        </div>
       </nav>
     </header>
   )
