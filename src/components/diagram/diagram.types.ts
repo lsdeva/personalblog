@@ -31,13 +31,6 @@ export interface DiagramEdge {
   variant?: 'solid' | 'emphasis'
 }
 
-export interface SceneFocus {
-  /** Node ids the camera should frame. */
-  nodes: string[]
-  /** Extra space around the framed nodes, in diagram pixels. Default 40. */
-  padding?: number
-}
-
 export interface SceneState {
   /** Node ids to render at full emphasis. Others are dimmed. */
   highlight?: string[]
@@ -47,13 +40,8 @@ export interface SceneState {
   pulse?: string[]
   /** Node ids to gray out completely. */
   dim?: string[]
-  /** Optional sub-caption (used by older ScrollScene layouts). */
+  /** Optional sub-caption displayed below the diagram in this scene. */
   caption?: string
-  /**
-   * Camera focus for the Prezi-style DiagramTour. "full" = show the whole
-   * diagram (default). Otherwise, frame the listed nodes with padding.
-   */
-  focus?: 'full' | SceneFocus
 }
 
 export interface DiagramSpec {

@@ -1,5 +1,6 @@
 import type { DiagramSpec } from '@/components/diagram/diagram.types'
 
+// Placeholder diagram — fuller version follows when real content is written.
 export const fhirEksDiagram: DiagramSpec = {
   id: 'fhir-eks',
   title:
@@ -21,25 +22,22 @@ export const fhirEksDiagram: DiagramSpec = {
     { from: 'fhir', to: 'audit', variant: 'emphasis' },
   ],
   scenes: {
-    overview: { focus: 'full' },
+    overview: { caption: 'Every request is authenticated, routed, and auditable.' },
     edge: {
       highlight: ['client', 'ingress'],
       activeEdges: ['client->ingress'],
       dim: ['fhir', 'db', 'audit'],
-      focus: { nodes: ['client', 'ingress'], padding: 50 },
     },
     server: {
       highlight: ['ingress', 'fhir', 'db'],
       activeEdges: ['ingress->fhir', 'fhir->db'],
       dim: ['client', 'audit'],
-      focus: { nodes: ['ingress', 'fhir', 'db'], padding: 50 },
     },
     audit: {
       highlight: ['fhir', 'audit'],
       activeEdges: ['fhir->audit'],
       pulse: ['audit'],
       dim: ['client', 'ingress', 'db'],
-      focus: { nodes: ['fhir', 'audit'], padding: 60 },
     },
   },
 }

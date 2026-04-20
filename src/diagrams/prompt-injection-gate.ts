@@ -26,7 +26,14 @@ export const promptInjectionGateDiagram: DiagramSpec = {
       tag: 'fast',
       variant: 'primary',
     },
-    { id: 'blocked1', label: 'Blocked', sublabel: 'regex match', x: 0, y: 1, variant: 'ghost' },
+    {
+      id: 'blocked1',
+      label: 'Blocked',
+      sublabel: 'regex match',
+      x: 0,
+      y: 1,
+      variant: 'ghost',
+    },
     {
       id: 'stage2',
       label: 'Stage 2',
@@ -36,7 +43,14 @@ export const promptInjectionGateDiagram: DiagramSpec = {
       tag: 'workhorse',
       variant: 'primary',
     },
-    { id: 'blocked2', label: 'Blocked', sublabel: 'classifier', x: 0, y: 2, variant: 'ghost' },
+    {
+      id: 'blocked2',
+      label: 'Blocked',
+      sublabel: 'classifier',
+      x: 0,
+      y: 2,
+      variant: 'ghost',
+    },
     {
       id: 'stage3',
       label: 'Stage 3',
@@ -67,42 +81,43 @@ export const promptInjectionGateDiagram: DiagramSpec = {
   ],
 
   scenes: {
-    overview: { focus: 'full' },
+    overview: { caption: 'Cheap checks first. Expensive checks only when needed.' },
     problem: {
       highlight: ['user', 'llm'],
+      activeEdges: [],
       dim: ['stage1', 'blocked1', 'stage2', 'blocked2', 'stage3'],
-      focus: 'full',
+      caption: 'Today: the LLM has to trust everything the user sends.',
     },
     stage1: {
       highlight: ['user', 'stage1', 'blocked1'],
       activeEdges: ['user->stage1', 'stage1->blocked1'],
       dim: ['stage2', 'blocked2', 'stage3', 'llm'],
-      focus: { nodes: ['user', 'stage1', 'blocked1'], padding: 50 },
+      caption: 'Regex + keyword filter — catches ~35–40% at <2ms.',
     },
     stage2: {
       highlight: ['stage1', 'stage2', 'blocked2'],
       activeEdges: ['stage1->stage2', 'stage2->blocked2'],
       pulse: ['stage2'],
       dim: ['user', 'blocked1', 'stage3', 'llm'],
-      focus: { nodes: ['stage1', 'stage2', 'blocked2'], padding: 50 },
+      caption: 'Fine-tuned DeBERTa — the nuanced ones.',
     },
     stage3: {
       highlight: ['stage2', 'stage3'],
       activeEdges: ['stage2->stage3'],
       dim: ['user', 'stage1', 'blocked1', 'blocked2', 'llm'],
-      focus: { nodes: ['stage2', 'stage3'], padding: 60 },
+      caption: 'Optional LLM check for borderline scores (0.4–0.7).',
     },
     llm: {
       highlight: ['stage3', 'llm'],
       activeEdges: ['stage3->llm'],
       pulse: ['llm'],
       dim: ['user', 'stage1', 'blocked1', 'stage2', 'blocked2'],
-      focus: { nodes: ['stage3', 'llm'], padding: 60 },
+      caption: 'Only clean traffic reaches the model.',
     },
     principle: {
       highlight: ['user', 'stage1', 'stage2', 'stage3', 'llm'],
       activeEdges: ['user->stage1', 'stage1->stage2', 'stage2->stage3', 'stage3->llm'],
-      focus: 'full',
+      caption: 'Asymmetric cost allocation — the WAF pattern, for LLMs.',
     },
   },
 }
