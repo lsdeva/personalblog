@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 import createMDX from '@next/mdx'
+import remarkFrontmatter from 'remark-frontmatter'
 
 const nextConfig: NextConfig = {
   // Static export for GitHub Pages. No server actions, no runtime.
@@ -22,7 +23,10 @@ const nextConfig: NextConfig = {
 const withMDX = createMDX({
   extension: /\.mdx?$/,
   options: {
-    remarkPlugins: [],
+    // remark-frontmatter: tells the MDX parser to recognise YAML frontmatter
+    // and NOT render it as content. Metadata is still read separately via
+    // gray-matter in src/content/loader.ts.
+    remarkPlugins: [remarkFrontmatter],
     rehypePlugins: [],
   },
 })
