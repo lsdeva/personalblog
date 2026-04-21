@@ -31,6 +31,13 @@ export interface DiagramEdge {
   variant?: 'solid' | 'emphasis'
 }
 
+export interface SceneFocus {
+  /** Node ids the camera should frame. */
+  nodes: string[]
+  /** Extra viewBox-unit space around the framed group. Default 40. */
+  padding?: number
+}
+
 export interface SceneState {
   /** Node ids to render at full emphasis. Others are dimmed. */
   highlight?: string[]
@@ -42,6 +49,11 @@ export interface SceneState {
   dim?: string[]
   /** Optional sub-caption displayed below the diagram in this scene. */
   caption?: string
+  /**
+   * Camera focus. "full" or omitted → show the whole diagram.
+   * Otherwise the camera zooms in on the listed nodes.
+   */
+  focus?: 'full' | SceneFocus
 }
 
 export interface DiagramSpec {

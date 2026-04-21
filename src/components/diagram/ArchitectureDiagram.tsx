@@ -69,6 +69,7 @@ function clipRayToRect(
 export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagramProps) {
   const { activeStep, prefersReducedMotion } = useScrollScene()
   const svgRef = useRef<SVGSVGElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
 
   const { width, height } = useMemo(() => {
     const maxX = Math.max(...spec.nodes.map((n) => n.x))
@@ -178,6 +179,69 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
     }
   }, [currentScene, spec.nodes, spec.edges, prefersReducedMotion])
 
+  // Camera zoom: when a scene has a `focus`, scale the SVG and translate the
+  // target to the centre of the wrapper. Uses the wrapper's (untransformed)
+  // bounding rect for the pixel mapping.
+  useEffect(() => {
+    const svg = svgRef.current
+    const wrapper = wrapperRef.current
+    if (!svg || !wrapper) return
+
+    const focus = currentScene.state.focus
+    const duration = prefersReducedMotion ? 0 : 0.9
+    const ease = 'power3.out'
+
+    if (!focus || focus === 'full') {
+      gsap.to(svg, {
+        scale: 1,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration,
+        ease,
+      })
+      return
+    }
+
+    const focusNodes = focus.nodes
+      .map((id) => spec.nodes.find((n) => n.id === id))
+      .filter((n): n is NonNullable<typeof n> => Boolean(n))
+    if (focusNodes.length === 0) return
+
+    const pad = focus.padding ?? 40
+    const rects = focusNodes.map((n) => nodeRect(n.x, n.y))
+    const cxVb = rects.reduce((s, r) => s + r.x + r.w / 2, 0) / rects.length
+    const cyVb = rects.reduce((s, r) => s + r.y + r.h / 2, 0) / rects.length
+    const minX = Math.min(...rects.map((r) => r.x)) - pad
+    const minY = Math.min(...rects.map((r) => r.y)) - pad
+    const maxX = Math.max(...rects.map((r) => r.x + r.w)) + pad
+    const maxY = Math.max(...rects.map((r) => r.y + r.h)) + pad
+    const focusW = maxX - minX
+    const focusH = maxY - minY
+
+    // Scale so the focus area fills the viewport (capped so single-node
+    // focuses don't zoom absurdly).
+    const scale = Math.min(width / focusW, height / focusH, 2.4)
+
+    // Wrapper rect is pre-transform (we scale the inner SVG, not the wrapper).
+    const rect = wrapper.getBoundingClientRect()
+    const boxW = rect.width
+    const boxH = rect.height
+    const targetPx = (cxVb / width) * boxW
+    const targetPy = (cyVb / height) * boxH
+    const tx = boxW / 2 - targetPx
+    const ty = boxH / 2 - targetPy
+
+    gsap.to(svg, {
+      scale,
+      x: tx,
+      y: ty,
+      transformOrigin: `${targetPx}px ${targetPy}px`,
+      duration,
+      ease,
+    })
+  }, [currentScene, spec.nodes, width, height, prefersReducedMotion])
+
   const titleId = `diag-${spec.id}-title`
   const descId = descriptionId ?? `diag-${spec.id}-desc`
 
@@ -190,13 +254,22 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
         </p>
       )}
 
+      <div
+        ref={wrapperRef}
+        className="relative w-full overflow-hidden max-w-[min(1040px,92vw)]"
+        style={{
+          aspectRatio: `${width} / ${height}`,
+          maxHeight: '62vh',
+        }}
+      >
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="h-auto w-full max-w-[min(1040px,92vw)] max-h-[58vh] md:max-h-[62vh]"
+        className="h-full w-full"
+        style={{ willChange: 'transform' }}
       >
         <title id={titleId}>{spec.title}</title>
 
@@ -357,6 +430,7 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
           })}
         </g>
       </svg>
+      </div>
 
       {currentScene.state.caption && (
         <p className="text-kicker mt-6 text-center">{currentScene.state.caption}</p>

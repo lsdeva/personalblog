@@ -22,22 +22,25 @@ export const legacyMigrationDiagram: DiagramSpec = {
     { from: 'plan', to: 'cloud' },
   ],
   scenes: {
-    overview: { caption: 'Read the legacy. Reason about the shape. Emit a plan.' },
+    overview: { focus: 'full', caption: 'Read the legacy. Reason about the shape. Emit a plan.' },
     ingest: {
       highlight: ['legacy', 'ingest'],
       activeEdges: ['legacy->ingest'],
       dim: ['reason', 'plan', 'cloud'],
+      focus: { nodes: ['legacy', 'ingest'], padding: 50 },
     },
     reason: {
       highlight: ['ingest', 'reason'],
       activeEdges: ['ingest->reason'],
       pulse: ['reason'],
       dim: ['legacy', 'plan', 'cloud'],
+      focus: { nodes: ['ingest', 'reason'], padding: 60 },
     },
     plan: {
       highlight: ['reason', 'plan', 'cloud'],
       activeEdges: ['reason->plan', 'plan->cloud'],
       dim: ['legacy', 'ingest'],
+      focus: { nodes: ['reason', 'plan', 'cloud'], padding: 50 },
     },
   },
 }

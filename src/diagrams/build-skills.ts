@@ -83,6 +83,7 @@ export const buildSkillsDiagram: DiagramSpec = {
 
   scenes: {
     overview: {
+      focus: 'full',
       caption: 'Four layers. One direction of intent.',
     },
     engineer: {
@@ -96,12 +97,14 @@ export const buildSkillsDiagram: DiagramSpec = {
         'skill-summarize',
         'skill-analyze',
       ],
+      focus: { nodes: ['engineer', 'agent'], padding: 80 },
       caption: 'The human in the loop.',
     },
     agent: {
       highlight: ['engineer', 'agent'],
       activeEdges: ['engineer->agent'],
       dim: ['skill-summarize', 'skill-analyze'],
+      focus: { nodes: ['engineer', 'agent'], padding: 60 },
       caption: 'The orchestrator — holds intent, not logic.',
     },
     tools: {
@@ -115,12 +118,14 @@ export const buildSkillsDiagram: DiagramSpec = {
         'skill-summarize',
         'skill-analyze',
       ],
+      focus: { nodes: ['mcp-tools', 'agent', 'mcp-apis'], padding: 40 },
       caption: 'Tools extend reach — but tools are not skills.',
     },
     filesystem: {
       highlight: ['agent', 'filesystem'],
       activeEdges: ['agent->filesystem'],
       dim: ['mcp-tools', 'mcp-apis', 'skill-summarize', 'skill-analyze'],
+      focus: { nodes: ['agent', 'filesystem'], padding: 60 },
       caption: 'The persistent layer. Source of truth.',
     },
     skills: {
@@ -128,11 +133,16 @@ export const buildSkillsDiagram: DiagramSpec = {
       activeEdges: ['filesystem->skill-io', 'filesystem->skill-transform'],
       pulse: ['skill-io', 'skill-transform'],
       dim: ['engineer', 'agent', 'mcp-tools', 'mcp-apis'],
+      focus: {
+        nodes: ['filesystem', 'skill-io', 'skill-transform', 'skill-summarize', 'skill-analyze'],
+        padding: 30,
+      },
       caption: 'Self-contained. Composable. Testable.',
     },
     principle: {
       highlight: ['engineer', 'agent', 'filesystem', 'skill-io', 'skill-transform'],
       activeEdges: ['engineer->agent', 'agent->filesystem', 'filesystem->skill-io'],
+      focus: 'full',
       caption: "The agent's only job: decide which skill to call — and when.",
     },
   },
