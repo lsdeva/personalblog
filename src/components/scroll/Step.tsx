@@ -10,24 +10,25 @@ interface StepProps {
   className?: string
 }
 
-// A prose block inside ScrollSceneSteps. When it crosses the viewport mid-zone,
-// it sets the ScrollScene's `activeStep` to its `trigger`.
+// Registers its children with the ScrollScene context so they appear in the
+// floating balloon when this step is active. The element itself is an
+// invisible scroll-spacer — it only provides scroll distance for the
+// ScrollTrigger. The actual prose is rendered in <ScrollSceneSticky>'s balloon.
 export function Step({ trigger, children, className }: StepProps) {
   const { registerStep } = useScrollScene()
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!ref.current) return
-    return registerStep(trigger, ref.current)
-  }, [trigger, registerStep])
+    return registerStep(trigger, ref.current, children)
+  }, [trigger, children, registerStep])
 
   return (
     <div
       ref={ref}
       data-step={trigger}
-      className={`flex flex-col py-8 md:min-h-[45vh] md:justify-start md:py-10 ${className ?? ''}`}
-    >
-      <div className="max-w-full">{children}</div>
-    </div>
+      aria-hidden="true"
+      className={`hidden md:block md:h-[55vh] ${className ?? ''}`}
+    />
   )
 }

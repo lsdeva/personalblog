@@ -238,6 +238,30 @@
   }
 }
 
+/* Scroll-scene balloon — card that shows the active step's prose next to
+   the zoomed diagram. Fades + rises on step change via CSS animation
+   triggered by React's key={activeStep} re-mount. */
+.scroll-scene-balloon {
+  animation: balloon-in 500ms var(--ease-out-expo);
+}
+
+@keyframes balloon-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-scene-balloon {
+    animation: none;
+  }
+}
+
 /* Nav middle slot: shows the current article title while reading.
    Empty-but-present when no article is in focus so the nav layout doesn't shift. */
 .nav-title-slot {

@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -20,16 +21,14 @@ interface ScrollSceneProps {
   className?: string
 }
 
-// Two-column scroll scene: a sticky visual on the left, scrolling prose on the right.
-// At ≤md, collapses to a single column where the visual sticks above the prose.
 export function ScrollScene({ children, className }: ScrollSceneProps) {
   const [activeStep, setActiveStep] = useState<string | null>(null)
+  const [contents, setContents] = useState<Map<string, ReactNode>>(new Map())
   const [progress, setProgress] = useState(0)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const stepsRef = useRef<Map<string, HTMLElement>>(new Map())
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Mirror the OS reduced-motion preference reactively.
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mq.matches)
@@ -38,30 +37,40 @@ export function ScrollScene({ children, className }: ScrollSceneProps) {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  const registerStep = useCallback((name: string, el: HTMLElement) => {
-    stepsRef.current.set(name, el)
-    return () => {
-      stepsRef.current.delete(name)
-    }
-  }, [])
+  const registerStep = useCallback(
+    (name: string, el: HTMLElement, content: ReactNode) => {
+      stepsRef.current.set(name, el)
+      setContents((prev) => {
+        const next = new Map(prev)
+        next.set(name, content)
+        return next
+      })
+      return () => {
+        stepsRef.current.delete(name)
+        setContents((prev) => {
+          const next = new Map(prev)
+          next.delete(name)
+          return next
+        })
+      }
+    },
+    [],
+  )
 
-  // Wire ScrollTriggers once the DOM has all steps mounted.
   useEffect(() => {
     if (!containerRef.current) return
 
     const ctx = gsap.context(() => {
-      // Per-step triggers: activate when the step crosses the viewport mid-zone.
       stepsRef.current.forEach((el, name) => {
         ScrollTrigger.create({
           trigger: el,
-          start: 'top 65%',
-          end: 'bottom 35%',
+          start: 'top 75%',
+          end: 'bottom 25%',
           onEnter: () => setActiveStep(name),
           onEnterBack: () => setActiveStep(name),
         })
       })
 
-      // Scene-wide progress (0..1) — useful for scrubbed diagram animations.
       ScrollTrigger.create({
         trigger: containerRef.current,
         start: 'top top',
@@ -71,12 +80,26 @@ export function ScrollScene({ children, className }: ScrollSceneProps) {
     }, containerRef)
 
     return () => ctx.revert()
-  }, [])
+  }, [contents])
+
+  const activeContent = useMemo<ReactNode>(() => {
+    if (!activeStep) return null
+    return contents.get(activeStep) ?? null
+  }, [activeStep, contents])
+
+  const value = useMemo(
+    () => ({
+      activeStep,
+      activeContent,
+      progress,
+      prefersReducedMotion,
+      registerStep,
+    }),
+    [activeStep, activeContent, progress, prefersReducedMotion, registerStep],
+  )
 
   return (
-    <ScrollSceneContext.Provider
-      value={{ activeStep, progress, prefersReducedMotion, registerStep }}
-    >
+    <ScrollSceneContext.Provider value={value}>
       <div ref={containerRef} className={`full-bleed relative ${className ?? ''}`}>
         {children}
       </div>
@@ -89,37 +112,71 @@ interface ScrollSceneStickyProps {
   className?: string
 }
 
-// Diagram-centric layout: on desktop, the diagram pins to the top of the
-// viewport as a large centered panel. Prose steps scroll through the space
-// below, each flagging which part of the diagram they describe. Background
-// is opaque (not translucent) — Tailwind's arbitrary-value-with-opacity
-// syntax on CSS vars doesn't reliably compile, and the steps scrolling
-// under the diagram need to be hidden, not showing through.
-// On mobile, sticky is skipped — diagram renders once at natural flow and
-// steps follow as normal prose so nothing overlaps.
+// Desktop: sticky band at top of viewport with diagram on the left and a
+// floating balloon card on the right showing the active step's prose.
+// Mobile: natural flow — diagram renders once at size, balloon stacks below.
 export function ScrollSceneSticky({ children, className }: ScrollSceneStickyProps) {
   return (
     <div
       className={`
-        flex items-center justify-center py-6
-        md:sticky md:top-[4rem] md:z-10 md:h-[68vh] md:border-b
-        md:border-[var(--color-border)] md:py-4
+        flex flex-col items-center justify-center gap-6 py-6
+        md:sticky md:top-[4rem] md:z-10 md:h-[78vh] md:flex-row
+        md:items-stretch md:gap-8 md:border-b md:border-[var(--color-border)]
+        md:py-6
         ${className ?? ''}
       `}
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
-      <div className="w-full">{children}</div>
+      <div className="flex w-full min-w-0 flex-1 items-center justify-center">{children}</div>
+      <Balloon />
     </div>
   )
 }
+
+function Balloon() {
+  const { activeStep, activeContent } = useScrollSceneForBalloon()
+
+  return (
+    <aside
+      aria-live="polite"
+      className="hidden md:flex md:w-[360px] md:shrink-0 md:items-center"
+    >
+      <div
+        key={activeStep ?? '__empty'}
+        className="scroll-scene-balloon relative w-full border border-[var(--color-border-hi)] bg-[var(--color-surface)] p-6 shadow-xl"
+      >
+        {activeContent ? (
+          <div className="text-[0.9375rem] leading-relaxed text-[var(--color-fg)]">
+            {activeContent}
+          </div>
+        ) : (
+          <p className="font-[var(--font-mono)] text-[0.75rem] tracking-[0.12em] text-[var(--color-muted)] uppercase">
+            Scroll to begin the tour →
+          </p>
+        )}
+      </div>
+    </aside>
+  )
+}
+
+// Small indirection so we can re-use useScrollScene without circular imports
+// at component-definition time.
+function useScrollSceneForBalloon() {
+  const { activeStep, activeContent } = useScrollScene()
+  return { activeStep, activeContent }
+}
+
+// Re-export the hook locally to avoid a circular module dependency.
+import { useScrollScene } from './useScrollScene'
 
 interface ScrollSceneStepsProps {
   children: ReactNode
   className?: string
 }
 
+// Provides scroll distance — renders all <Step> children as invisible
+// spacers. Steps register their content with context; the active step's
+// content is rendered in <Balloon> inside the sticky.
 export function ScrollSceneSteps({ children, className }: ScrollSceneStepsProps) {
-  return (
-    <div className={`mx-auto flex max-w-[60ch] flex-col px-6 ${className ?? ''}`}>{children}</div>
-  )
+  return <div className={`relative ${className ?? ''}`}>{children}</div>
 }
