@@ -1,0 +1,184 @@
+---
+title: "The missing layer: a field guide to agentic AuthN/AuthZ"
+description: What's being built, what's missing, and where the ROI is. A map of the converging protocol stack, the threat surface, the vendor landscape, and the reference architecture I'd propose to a CTO.
+publishedAt: '2026-05-21'
+tags: [security, identity, agents]
+diagramId: agentic-authn-authz
+---
+
+import { agenticAuthnAuthzDiagram } from '@/diagrams/agentic-authn-authz'
+
+Over the last few weeks I read everything I could find on identity, authentication, and authorization for AI agents — the OpenID whitepaper, the MCP and A2A specifications, the NIST AI Agent Standards Initiative, OWASP's Top 10 for Agentic Applications, the SPIFFE/SPIRE and W3C VC documentation, and roughly a dozen academic papers.
+
+This is the version of that research I wish had existed when I started: a map of the field, the converging protocol stack, the threat surface, the vendor landscape, and — most importantly — the reference architecture I'd propose to a CTO who asked me "what should we actually build?" It's written from the perspective of a solution architect, not a researcher. Every recommendation traces back to a primary source. Where I have an opinion, I'll say so.
+
+## 1. Why human security breaks
+
+Classical identity and access management was built on two assumptions. First, that humans are the primary actors — every action ultimately ties back to a person. Second, that humans self-restrain — law, social pressure, and professional habit limit misuse, so coarse permissions ("repo access") were safe in practice even when overly broad in theory.
+
+Agents break both. They act at 10,000× the speed of a human without social friction. They can be tricked by adversarial data in tools or documents — prompt injection, which OWASP classifies as ASI01. They chain calls across systems that no one threat-modeled together. And they're stuck in a credential crisis: either they inherit a human's over-privileged login, or they run as an under-attributed service account that nobody can hold responsible.
+
+<Callout tone="warn" title="The non-human identity crisis">
+  Cisco's 2026 white paper on Zero Trust for Agentic AI captures the operational version of this problem: enterprises now have non-human identities (NHIs) running in production with no consistent lifecycle, ownership, or revocation story. This isn't a small gap. It's a foundational re-think.
+</Callout>
+
+## 2. The four conceptual shifts
+
+Reading across the literature, the same four shifts appear in almost every credible architecture proposal.
+
+**Identity-as-claims, not identity-as-string.** Alice's identity used to be `alice@company.com`. An agent's identity has to be a dynamic bundle: model, version, deployer, scope, real-time trust score, principal binding. The OpenID Foundation whitepaper (South et al., 2510.25819) makes this case formally.
+
+**Delegated authority, with attenuation.** A user delegates to an agent; that agent may delegate to a sub-agent. Authority must narrow at every hop, never expand. Sporny et al.'s W3C VC Data Model 2.0 supports cryptographic delegation chains where each link is independently verifiable.
+
+**Continuous trust, not request-time auth.** A human logs in once a day. An agent's trustworthiness shifts mid-task — a model update happens, an odd behavior pattern emerges, a credential gets revoked in real time. SPIFFE/SPIRE's short-TTL SVID model (typically one-hour rotation) is the production-proven pattern here.
+
+**Intent-based auditing.** Audit logs used to answer "who." For agents, they have to answer who, what, why, and on whose behalf. This is where Google's Intent Mandate and Cart Mandate primitives come from, and what HDP (Human Delegation Provenance Protocol, submitted to the W3C Credentials CG in March 2026) formalizes as a signed token chain.
+
+## 3. Five hard problems
+
+Every paper and product in this space is fighting one of these five problems.
+
+**Agent identity — verifiable, non-spoofable.** Solutions range from weak (client IDs) to strong (SPIFFE SVIDs anchored in TPM/secure elements). HashiCorp Vault Enterprise 1.21+ added native SPIFFE authentication for non-human workloads.
+
+**Delegation and attenuation — scope can only narrow.** Intent Mandate, Cart Mandate, and W3C VC chains are the current best primitives for proving authorization for specific actions while ensuring scope never expands.
+
+**Authorization propagation — trust chains across multi-agent systems.** OAuth 2.1 Token Exchange (RFC 8693), Resource Indicators (RFC 8707), and the MCP Authorization Specification (June 2025) provide the protocol surface.
+
+**Continuous trust and revocation — real-time behavioral scoring and instant credential invalidation.** The Shared Signals Framework (specifically CAEP — Continuous Access Evaluation Profile) is the IETF-track answer. Vendors like Google's Model Armor and Cisco's behavioral baselining build on top.
+
+**Accountability vs. privacy — deep auditability creates surveillance risk.** Zero-knowledge proofs and selective disclosure (Hu & Rong's "Proof" trust category, arXiv 2605.06738) let an agent prove "I'm authorized" without revealing who its principal is.
+
+## 4. The protocol stack
+
+Here's where most discussions get vague. They list MCP, A2A, OAuth, SPIFFE without telling you how they fit together.
+
+<Callout tone="info" title="Four-layer stack">
+  **Application layer** — MCP and A2A. MCP standardizes agent-to-tool communication; A2A (now governed by the Linux Foundation as of June 2025) standardizes agent-to-agent. Both moved to OAuth-based authorization in 2025.
+
+  **Authorization layer** — OAuth 2.1, OIDC, and Mandate protocols. The MCP Authorization Spec (2025-06-18) made OAuth 2.1 + PKCE + Resource Indicators the baseline.
+
+  **Identity layer** — SPIFFE/SPIRE for workload identity, W3C VCs and DIDs for verifiable claims. These are independent but increasingly composed — HashiCorp's integration is the production reference.
+
+  **Enterprise layer** — SCIM for lifecycle, IPSIE for the enterprise interoperability profile. OpenID's IPSIE Working Group, formed October 2024 with Microsoft, Okta, Ping, and Beyond Identity as founding members, is the venue.
+</Callout>
+
+A single agent request traverses every layer: user → agent → MCP → OAuth/Mandate → SPIFFE → SCIM. Not every layer carries equal cryptographic weight. SPIFFE-attested workload identity is hardware-rooted; an MCP request signature is only as strong as the OAuth token behind it. The identity layer is structurally the strongest part of the stack — which is why it's the layer most likely to anchor real ROI.
+
+## 5. The threat surface
+
+The de facto threat model is the OWASP Top 10 for Agentic Applications 2026. A reference architecture that doesn't explicitly map to it won't survive enterprise procurement.
+
+The ten categories: ASI01 Agent Goal Hijack, ASI02 Memory Manipulation, ASI03 Identity and Privilege Abuse, ASI04 Tool and Resource Abuse, ASI05 Cascading Failures, ASI06 Excessive Autonomy, ASI07 Insufficient Observability, ASI08 Supply Chain Risks, ASI09 Human-Agent Trust Exploitation, ASI10 Rogue Agents.
+
+DeepMind's AI Agent Traps taxonomy maps to six broader categories: content injection, semantic manipulation, capability exploitation, identity attacks, oversight evasion, and resource manipulation.
+
+The point isn't to memorize the taxonomies. The point is that **ASI03 — Identity and Privilege Abuse** and **ASI09 — Human-Agent Trust Exploitation** are the two categories most directly addressed by getting the identity and authorization layer right. That's where the reference architecture has to earn its keep.
+
+## 6. The vendor map
+
+Google is going for full-stack: A2A protocol, Agent Identities, Model Armor, Agent Gateway, Apigee MCP support, SPIFFE-anchored edge identity, the DeepMind Agentic Red Team, and Wiz. Microsoft and AWS are extending enterprise identity: Microsoft's Entra Agent ID and Conditional Access; AWS's Bedrock AgentCore identity and IAM extensions. Anthropic owns MCP. OpenID Foundation owns IPSIE and standards convergence.
+
+Okta and Auth0 are positioning "Auth for GenAI" as a product category. SPIFFE quietly powers workload identity foundations. Startups — Stytch, WorkOS, Descope — are competing on developer-first agent auth APIs.
+
+<Callout tone="accent" title="The signal">
+  Despite the competition, the protocol layer is converging on cross-vendor standards: MCP, A2A, IPSIE, SPIFFE, W3C VC. Where standards converge, defensible products get built on top. That's the signal a solution architect should care about.
+</Callout>
+
+## 7. The missing layer
+
+The literature has standards for every layer of the stack. SPIFFE for workload identity. OAuth 2.1 + RFC 8693 for token exchange. W3C VCs for delegation. NIST AI RMF for governance. OWASP ASI for threat modeling. AAGATE (Huang et al., 2510.25863) for a governance control plane.
+
+What's missing is the layer that stitches them together end-to-end — a control plane that fuses cryptographic identity with intent-aware governance through a unified delegation model. I'd build it as four planes, top to bottom. Delegation flows down. Trust chains audit upward.
+
+What's explicitly out of scope: building a new identity store (federate with existing IdP), building a new policy language (use OPA/Rego), building the LLM (model-agnostic by design), or building a sidecar mesh (operate as middleware in the MCP/A2A path). A good architecture says no.
+
+<ScrollScene>
+  <ScrollSceneSticky>
+    <ArchitectureDiagram spec={agenticAuthnAuthzDiagram} />
+  </ScrollSceneSticky>
+  <ScrollSceneSteps>
+
+    <Step trigger="overview">
+      ### The four-plane reference architecture
+
+      Four planes, top to bottom: Principal, Agent Identity, Authorization, and
+      Governance. Every agent request is initiated by a human who has issued a
+      delegation credential. That credential is the root of every trust decision
+      downstream. Nothing enters this system as an anonymous service account.
+    </Step>
+
+    <Step trigger="plane1">
+      ### Plane 1 — Principal
+
+      A human authenticates to an existing OIDC identity provider — no new
+      identity store required. They then issue a W3C Verifiable Credential that
+      encodes scope, conditions, and a cryptographic binding to the agent they're
+      delegating to. This credential is not a password. It's a signed,
+      machine-verifiable delegation that every downstream layer can independently
+      verify without calling home to the issuer.
+    </Step>
+
+    <Step trigger="plane2">
+      ### Plane 2 — Agent identity
+
+      The AI agent receives the delegation credential and must prove its own
+      workload identity. SPIFFE issues a short-lived SVID — a workload identity
+      document anchored to a TPM or container attestation. There are no static
+      API keys. There are no long-lived service account credentials. Every
+      rotation happens automatically on a one-hour cycle, which is the
+      production-proven default from SPIFFE/SPIRE deployments at scale.
+    </Step>
+
+    <Step trigger="plane3">
+      ### Plane 3 — Authorization and delegation
+
+      The agent calls tools via MCP and spawns sub-agents via A2A. Both protocols
+      speak OAuth 2.1 with PKCE. When a token is handed off — agent to sub-agent
+      — RFC 8693 Token Exchange attenuates the scope: the receiving party can
+      only hold a subset of the delegating party's permissions. Authority narrows
+      at every hop. A sub-agent cannot claim more permission than the agent that
+      delegated to it.
+    </Step>
+
+    <Step trigger="plane4">
+      ### Plane 4 — Governance
+
+      At the bottom, everything gets evaluated, revoked, and recorded. OPA/Rego
+      evaluates the full delegation chain against policy. The Shared Signals
+      Framework (CAEP — Continuous Access Evaluation Profile) propagates
+      revocation in real time: a credential invalidated in the IdP reaches all
+      in-flight tool calls within seconds. Every action writes to a
+      cryptographically chained audit log that captures intent context, not just
+      "who called what."
+    </Step>
+
+    <Step trigger="roi">
+      ### Where the ROI is
+
+      Three measurable vectors. **Compliance velocity**: architectures aligned to
+      NIST AI RMF and OWASP ASI cut deployment-to-audit time from quarters to
+      weeks. **Blast-radius reduction**: every credential is revocable via CAEP
+      with sub-second propagation across all in-flight calls. **Vendor
+      independence**: the control plane sits between agents and enterprise systems
+      — switching frontier models doesn't require rewriting governance. The
+      control plane is model-agnostic by design.
+    </Step>
+
+  </ScrollSceneSteps>
+</ScrollScene>
+
+## 8. What to read next
+
+If you want to go deeper, read these in order.
+
+**OpenID Foundation — Identity Management for Agentic AI (arXiv 2510.25819).** The field overview. South et al. cover the identity-as-claims model and the delegation chain architecture more rigorously than anything else I found.
+
+**MCP Authorization Specification.** The protocol surface most people will actually integrate with first. The June 2025 version made OAuth 2.1 + PKCE + Resource Indicators the baseline — read this before you write any MCP integration code.
+
+**AAGATE — Huang et al. (arXiv 2510.25863).** The closest thing to a published governance control plane specification. Their policy engine design maps cleanly to OPA/Rego.
+
+**OWASP Top 10 for Agentic Applications 2026.** The threat model your architecture has to survive. Read it once before you design, and once more before you go to production.
+
+**SPIFFE/SPIRE documentation.** Because workload identity is going to anchor every serious agent deployment. The SPIFFE Federation model — cross-trust-domain identity without a shared root — is the answer to the "cross-vendor agent identity" problem that nobody else has solved cleanly.
+
+**NIST AI Agent Standards Initiative concept paper.** Because what NIST publishes becomes procurement language within 18 months. The AI Agent Interoperability Profile is expected Q4 2026. Architects who aren't familiar with it will be re-doing alignment work under deadline pressure.
