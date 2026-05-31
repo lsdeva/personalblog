@@ -106,7 +106,7 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
     const highlights = new Set(state.highlight ?? [])
     const dims = new Set(state.dim ?? [])
     const pulses = new Set(state.pulse ?? [])
-    const activeEdges = new Set(state.activeEdges ?? [])
+    const activeEdges = new Set<string>(state.activeEdges ?? [])
     // If `highlight` is unset we treat all nodes as equally lit.
     const hasHighlight = highlights.size > 0
 

@@ -5,6 +5,19 @@ import { ArticleHeader } from '@/components/article/ArticleHeader'
 import { ArticleCarousel } from '@/components/article/ArticleCarousel'
 import type { ComponentType } from 'react'
 
+// Explicit import map so webpack can enumerate MDX chunks at build time.
+// A template-literal dynamic import (e.g. `import(\`.../${slug}.mdx\`)`) is
+// not statically analysable and breaks `output: 'export'`.
+const mdxModules: Record<string, () => Promise<{ default: ComponentType }>> = {
+  'agentic-authn-authz': () => import('../../content/writing/agentic-authn-authz.mdx'),
+  'build-skills-not-agents': () => import('../../content/writing/build-skills-not-agents.mdx'),
+  'fhir-integration-on-eks': () => import('../../content/writing/fhir-integration-on-eks.mdx'),
+  'legacy-to-cloud-migration-intelligence': () =>
+    import('../../content/writing/legacy-to-cloud-migration-intelligence.mdx'),
+  'prompt-injection-defense-layer': () =>
+    import('../../content/writing/prompt-injection-defense-layer.mdx'),
+}
+
 interface InlineArticle {
   slug: string
   frontmatter: import('@/content/types').ArticleFrontmatter
@@ -16,7 +29,7 @@ export default async function HomePage() {
   const articles = getAllArticles()
   const sections: InlineArticle[] = await Promise.all(
     articles.map(async (a) => {
-      const mod = await import(`../../content/writing/${a.slug}.mdx`)
+      const mod = await mdxModules[a.slug]()
       return {
         slug: a.slug,
         frontmatter: a.frontmatter,
