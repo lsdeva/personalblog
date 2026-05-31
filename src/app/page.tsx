@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { getAllArticles } from '@/content/loader'
 import { LenisProvider } from '@/components/scroll/LenisProvider'
 import { ArticleHeader } from '@/components/article/ArticleHeader'
+import { ArticleCarousel } from '@/components/article/ArticleCarousel'
 import type { ComponentType } from 'react'
 
 interface InlineArticle {
@@ -48,6 +49,8 @@ export default async function HomePage() {
           </p>
         </div>
       </section>
+
+      <ArticleCarousel articles={articles} />
 
       {/* Each article rendered inline — header + full MDX body.
           Readers scroll continuously through hero → article → article → article. */}
