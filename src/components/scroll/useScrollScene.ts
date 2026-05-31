@@ -11,9 +11,10 @@ export interface ScrollSceneContextValue {
   progress: number
   /** Reflects `prefers-reduced-motion: reduce`; animations should snap. */
   prefersReducedMotion: boolean
-  /** Register a Step element + its children so ScrollScene can attach a
-   *  ScrollTrigger and route the content to the balloon. */
-  registerStep: (name: string, el: HTMLElement, content: ReactNode) => () => void
+  /** Register a Step element so ScrollScene can attach a ScrollTrigger to it. */
+  registerStep: (name: string, el: HTMLElement) => () => void
+  /** Update the content for a registered Step (ref-only, no re-render triggered). */
+  setStepContent: (name: string, content: ReactNode) => void
 }
 
 export const ScrollSceneContext = createContext<ScrollSceneContextValue>({
@@ -22,6 +23,7 @@ export const ScrollSceneContext = createContext<ScrollSceneContextValue>({
   progress: 0,
   prefersReducedMotion: false,
   registerStep: () => () => {},
+  setStepContent: () => {},
 })
 
 export function useScrollScene(): ScrollSceneContextValue {

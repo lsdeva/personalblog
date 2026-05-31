@@ -8,9 +8,9 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { ScrollSceneContext, useScrollScene } from './useScrollScene'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { ScrollSceneContext } from './useScrollScene'
 
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger)
@@ -23,10 +23,14 @@ interface ScrollSceneProps {
 
 export function ScrollScene({ children, className }: ScrollSceneProps) {
   const [activeStep, setActiveStep] = useState<string | null>(null)
-  const [contents, setContents] = useState<Map<string, ReactNode>>(new Map())
+  // Increments on step mount/unmount to trigger ScrollTrigger rebuilds.
+  // Kept as state (not a ref) so the effect re-runs; content is in a ref
+  // so content updates don't cause rebuilds.
+  const [stepVersion, setStepVersion] = useState(0)
   const [progress, setProgress] = useState(0)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const stepsRef = useRef<Map<string, HTMLElement>>(new Map())
+  const contentsRef = useRef<Map<string, ReactNode>>(new Map())
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -37,37 +41,41 @@ export function ScrollScene({ children, className }: ScrollSceneProps) {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  const registerStep = useCallback(
-    (name: string, el: HTMLElement, content: ReactNode) => {
-      stepsRef.current.set(name, el)
-      setContents((prev) => {
-        const next = new Map(prev)
-        next.set(name, content)
-        return next
-      })
-      return () => {
-        stepsRef.current.delete(name)
-        setContents((prev) => {
-          const next = new Map(prev)
-          next.delete(name)
-          return next
-        })
-      }
-    },
-    [],
-  )
+  const registerStep = useCallback((name: string, el: HTMLElement) => {
+    stepsRef.current.set(name, el)
+    setStepVersion((v) => v + 1)
+    return () => {
+      stepsRef.current.delete(name)
+      contentsRef.current.delete(name)
+      setStepVersion((v) => v + 1)
+    }
+  }, [])
+
+  // Updates the content ref only — no state change, no ScrollTrigger rebuild.
+  const setStepContent = useCallback((name: string, content: ReactNode) => {
+    contentsRef.current.set(name, content)
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current) return
 
     const ctx = gsap.context(() => {
-      stepsRef.current.forEach((el, name) => {
+      // Sort by DOM order so first/last are correct regardless of registration order.
+      const sorted = Array.from(stepsRef.current.entries()).sort(([, a], [, b]) =>
+        a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+      )
+
+      sorted.forEach(([name, el], index) => {
+        const isFirst = index === 0
+        const isLast = index === sorted.length - 1
         ScrollTrigger.create({
           trigger: el,
           start: 'top 75%',
           end: 'bottom 25%',
           onEnter: () => setActiveStep(name),
           onEnterBack: () => setActiveStep(name),
+          ...(isFirst && { onLeaveBack: () => setActiveStep(null) }),
+          ...(isLast && { onLeave: () => setActiveStep(null) }),
         })
       })
 
@@ -80,22 +88,20 @@ export function ScrollScene({ children, className }: ScrollSceneProps) {
     }, containerRef)
 
     return () => ctx.revert()
-  }, [contents])
-
-  const activeContent = useMemo<ReactNode>(() => {
-    if (!activeStep) return null
-    return contents.get(activeStep) ?? null
-  }, [activeStep, contents])
+  }, [stepVersion])
 
   const value = useMemo(
     () => ({
       activeStep,
-      activeContent,
+      // Read from the ref at render time — reactive to activeStep changes,
+      // not to content-ref mutations (acceptable: MDX content is static).
+      activeContent: activeStep ? (contentsRef.current.get(activeStep) ?? null) : null,
       progress,
       prefersReducedMotion,
       registerStep,
+      setStepContent,
     }),
-    [activeStep, activeContent, progress, prefersReducedMotion, registerStep],
+    [activeStep, progress, prefersReducedMotion, registerStep, setStepContent],
   )
 
   return (
@@ -114,7 +120,8 @@ interface ScrollSceneStickyProps {
 
 // Desktop: sticky band at top of viewport with diagram on the left and a
 // floating balloon card on the right showing the active step's prose.
-// Mobile: natural flow — diagram renders once at size, balloon stacks below.
+// Mobile: natural flow — diagram renders once at size; steps render their
+// prose inline below it (see Step component).
 export function ScrollSceneSticky({ children, className }: ScrollSceneStickyProps) {
   return (
     <div
@@ -134,7 +141,7 @@ export function ScrollSceneSticky({ children, className }: ScrollSceneStickyProp
 }
 
 function Balloon() {
-  const { activeStep, activeContent } = useScrollSceneForBalloon()
+  const { activeStep, activeContent } = useScrollScene()
 
   return (
     <aside
@@ -159,24 +166,13 @@ function Balloon() {
   )
 }
 
-// Small indirection so we can re-use useScrollScene without circular imports
-// at component-definition time.
-function useScrollSceneForBalloon() {
-  const { activeStep, activeContent } = useScrollScene()
-  return { activeStep, activeContent }
-}
-
-// Re-export the hook locally to avoid a circular module dependency.
-import { useScrollScene } from './useScrollScene'
-
 interface ScrollSceneStepsProps {
   children: ReactNode
   className?: string
 }
 
-// Provides scroll distance — renders all <Step> children as invisible
-// spacers. Steps register their content with context; the active step's
-// content is rendered in <Balloon> inside the sticky.
+// Renders Step children. On desktop each Step is an invisible scroll-spacer;
+// its prose appears in the Balloon. On mobile Steps render their prose inline.
 export function ScrollSceneSteps({ children, className }: ScrollSceneStepsProps) {
   return <div className={`relative ${className ?? ''}`}>{children}</div>
 }

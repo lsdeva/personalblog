@@ -10,25 +10,37 @@ interface StepProps {
   className?: string
 }
 
-// Registers its children with the ScrollScene context so they appear in the
-// floating balloon when this step is active. The element itself is an
-// invisible scroll-spacer — it only provides scroll distance for the
-// ScrollTrigger. The actual prose is rendered in <ScrollSceneSticky>'s balloon.
+// On desktop: an invisible scroll-spacer that drives the ScrollTrigger. Its
+// prose is rendered by <Balloon> inside <ScrollSceneSticky> when this step
+// is active. On mobile: renders children inline as normal document flow.
 export function Step({ trigger, children, className }: StepProps) {
-  const { registerStep } = useScrollScene()
+  const { registerStep, setStepContent } = useScrollScene()
   const ref = useRef<HTMLDivElement>(null)
 
+  // Register the DOM element for ScrollTrigger. Dep array has no `children`
+  // so this only fires on mount/unmount — not on every parent re-render.
   useEffect(() => {
     if (!ref.current) return
-    return registerStep(trigger, ref.current, children)
-  }, [trigger, children, registerStep])
+    return registerStep(trigger, ref.current)
+  }, [trigger, registerStep])
+
+  // Keep the content ref in sync. setStepContent only mutates a ref (no state
+  // change, no ScrollTrigger rebuild), so re-running on children changes is safe.
+  useEffect(() => {
+    setStepContent(trigger, children)
+  }, [trigger, children, setStepContent])
 
   return (
-    <div
-      ref={ref}
-      data-step={trigger}
-      aria-hidden="true"
-      className={`hidden md:block md:h-[55vh] ${className ?? ''}`}
-    />
+    <>
+      {/* Desktop: invisible spacer that provides scroll distance for the trigger. */}
+      <div
+        ref={ref}
+        data-step={trigger}
+        aria-hidden="true"
+        className={`hidden md:block md:h-[55vh] ${className ?? ''}`}
+      />
+      {/* Mobile: render prose inline so content is never hidden from users. */}
+      <div className="md:hidden py-8 px-6 max-w-[60ch] mx-auto">{children}</div>
+    </>
   )
 }

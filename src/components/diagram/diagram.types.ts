@@ -38,11 +38,14 @@ export interface SceneFocus {
   padding?: number
 }
 
+/** Typed edge identifier — matches the runtime format `"fromId->toId"`. */
+export type EdgeId = `${string}->${string}`
+
 export interface SceneState {
   /** Node ids to render at full emphasis. Others are dimmed. */
   highlight?: string[]
   /** Edge ids (`${from}->${to}`) to draw in / light up. */
-  activeEdges?: string[]
+  activeEdges?: EdgeId[]
   /** Node ids to pulse subtly (indicates "running" / "executing"). */
   pulse?: string[]
   /** Node ids to gray out completely. */

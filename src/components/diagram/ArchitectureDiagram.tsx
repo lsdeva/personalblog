@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import gsap from 'gsap'
 import type { DiagramSpec } from './diagram.types'
 import { useScrollScene } from '@/components/scroll/useScrollScene'
@@ -70,6 +70,16 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
   const { activeStep, prefersReducedMotion } = useScrollScene()
   const svgRef = useRef<SVGSVGElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  // Incremented by a ResizeObserver so the zoom effect re-runs on viewport resize.
+  const [resizeVersion, setResizeVersion] = useState(0)
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    const ro = new ResizeObserver(() => setResizeVersion((v) => v + 1))
+    ro.observe(wrapper)
+    return () => ro.disconnect()
+  }, [])
 
   const { width, height } = useMemo(() => {
     const maxX = Math.max(...spec.nodes.map((n) => n.x))
@@ -240,7 +250,7 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
       duration,
       ease,
     })
-  }, [currentScene, spec.nodes, width, height, prefersReducedMotion])
+  }, [currentScene, spec.nodes, width, height, prefersReducedMotion, resizeVersion])
 
   const titleId = `diag-${spec.id}-title`
   const descId = descriptionId ?? `diag-${spec.id}-desc`
