@@ -9,6 +9,7 @@ import type { ComponentType } from 'react'
 // A template-literal dynamic import (e.g. `import(\`.../${slug}.mdx\`)`) is
 // not statically analysable and breaks `output: 'export'`.
 const mdxModules: Record<string, () => Promise<{ default: ComponentType }>> = {
+  'agent-workload-identity': () => import('../../content/writing/agent-workload-identity.mdx'),
   'agentic-authn-authz': () => import('../../content/writing/agentic-authn-authz.mdx'),
   'build-skills-not-agents': () => import('../../content/writing/build-skills-not-agents.mdx'),
   'fhir-integration-on-eks': () => import('../../content/writing/fhir-integration-on-eks.mdx'),
