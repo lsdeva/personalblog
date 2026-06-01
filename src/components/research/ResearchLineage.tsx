@@ -299,6 +299,8 @@ export function ResearchLineage() {
 
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
+  const [showHint, setShowHint] = useState(false)
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isDragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 })
@@ -308,12 +310,23 @@ export function ResearchLineage() {
     setXform(next)
   }
 
-  // Attach non-passive wheel listener so preventDefault() works
+  function flashHint() {
+    setShowHint(true)
+    if (hintTimer.current) clearTimeout(hintTimer.current)
+    hintTimer.current = setTimeout(() => setShowHint(false), 1600)
+  }
+
+  // Non-passive wheel listener: zoom only when Ctrl/Meta held (covers pinch on trackpad too).
+  // Plain scroll falls through to the page — no preventDefault — so Lenis handles it normally.
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) return
 
     function onWheel(e: WheelEvent) {
+      if (!e.ctrlKey && !e.metaKey) {
+        flashHint()
+        return
+      }
       e.preventDefault()
       const { tx, ty, scale } = xformRef.current
       const rect = svg!.getBoundingClientRect()
@@ -331,7 +344,10 @@ export function ResearchLineage() {
     }
 
     svg.addEventListener('wheel', onWheel, { passive: false })
-    return () => svg.removeEventListener('wheel', onWheel)
+    return () => {
+      svg.removeEventListener('wheel', onWheel)
+      if (hintTimer.current) clearTimeout(hintTimer.current)
+    }
   }, [])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -460,7 +476,7 @@ export function ResearchLineage() {
           >
             ↺ Reset
           </button>
-          <span>Drag to pan · Scroll to zoom · Hover for details · Click to trace lineage</span>
+          <span>Drag to pan · Ctrl+scroll to zoom · Hover for details · Click to trace lineage</span>
 
           {/* Legend */}
           <div style={{ marginLeft: 'auto', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
@@ -496,8 +512,7 @@ export function ResearchLineage() {
         </div>
 
         {/* ── Canvas ── */}
-        {/* data-lenis-prevent stops Lenis intercepting scroll inside the map */}
-        <div style={{ overflow: 'hidden', borderRadius: '0 0 4px 4px' }} data-lenis-prevent>
+        <div style={{ overflow: 'hidden', borderRadius: '0 0 4px 4px', position: 'relative' }}>
           <svg
             ref={svgRef}
             width={1200}
@@ -620,6 +635,34 @@ export function ResearchLineage() {
 
             </g>
           </svg>
+
+          {/* Hint overlay — appears briefly when user scrolls without Ctrl */}
+          {showHint && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <div
+                style={{
+                  background: 'rgba(0,0,0,0.62)',
+                  color: '#fff',
+                  fontSize: 13,
+                  fontFamily: 'var(--font-sans)',
+                  padding: '10px 18px',
+                  borderRadius: 6,
+                  letterSpacing: '0.01em',
+                }}
+              >
+                Use <kbd style={{ fontFamily: 'var(--font-mono)', fontSize: 11, background: 'rgba(255,255,255,0.15)', padding: '1px 5px', borderRadius: 3 }}>Ctrl</kbd> + scroll to zoom
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Tooltip ── */}
