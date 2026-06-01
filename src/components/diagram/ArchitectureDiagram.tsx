@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import gsap from 'gsap'
 import type { DiagramSpec } from './diagram.types'
 import { useScrollScene } from '@/components/scroll/useScrollScene'
@@ -70,6 +70,16 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
   const { activeStep, prefersReducedMotion } = useScrollScene()
   const svgRef = useRef<SVGSVGElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  // Incremented by a ResizeObserver so the zoom effect re-runs on viewport resize.
+  const [resizeVersion, setResizeVersion] = useState(0)
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    const ro = new ResizeObserver(() => setResizeVersion((v) => v + 1))
+    ro.observe(wrapper)
+    return () => ro.disconnect()
+  }, [])
 
   const { width, height } = useMemo(() => {
     const maxX = Math.max(...spec.nodes.map((n) => n.x))
@@ -96,7 +106,7 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
     const highlights = new Set(state.highlight ?? [])
     const dims = new Set(state.dim ?? [])
     const pulses = new Set(state.pulse ?? [])
-    const activeEdges = new Set(state.activeEdges ?? [])
+    const activeEdges = new Set<string>(state.activeEdges ?? [])
     // If `highlight` is unset we treat all nodes as equally lit.
     const hasHighlight = highlights.size > 0
 
@@ -240,7 +250,7 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
       duration,
       ease,
     })
-  }, [currentScene, spec.nodes, width, height, prefersReducedMotion])
+  }, [currentScene, spec.nodes, width, height, prefersReducedMotion, resizeVersion])
 
   const titleId = `diag-${spec.id}-title`
   const descId = descriptionId ?? `diag-${spec.id}-desc`

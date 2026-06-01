@@ -1,0 +1,308 @@
+---
+title: "How to Give AI Agents Real Identities"
+description: Most teams shipping agents use one shared API key for all of them. Here is why that fails and how to compose SPIFFE workload identity, OPA policy-as-code, Biscuit attenuation, and CAEP revocation into a system that can prove its own correctness.
+publishedAt: '2026-05-28'
+tags: [security, identity, agents]
+diagramId: spiffe-workload-identity
+---
+
+import { spiffeWorkloadIdentityDiagram } from '@/diagrams/spiffe-workload-identity'
+
+Here is a question that should keep you up at night if you run AI agents in production: **which agent made that call?**
+
+You probably cannot answer it. Most teams shipping agents today hand all of them the same API key. Ten agents, one secret. When something goes wrong — an agent deletes a table it should not have touched, or burns through your OpenAI budget in an afternoon — you cannot tell which agent did it, you cannot limit what any of them are allowed to do, and the only way to revoke access is to rotate the key and break everything at once.
+
+This is not a new problem. It is the exact problem the cloud industry solved for services a decade ago. The answer was the same then as it is now: stop using shared secrets, and give every workload a cryptographic identity.
+
+What is new is that AI agents make the old approach far more dangerous — because agents spawn sub-agents, call external tools autonomously, and spend money on their own. So let us walk through how a serious agent-governance system is built, the way an architect would reason about it: from first principles, one decision at a time.
+
+## The three questions every governance system must answer
+
+Strip away the acronyms and every agent authorization system is trying to answer three questions on every single call:
+
+- **WHO is this agent?** → Identity
+- **WHAT is it allowed to do?** → Policy
+- **IS IT REALLY THAT AGENT?** → Proof of possession
+
+Notice the third one. It is the question most homegrown systems forget. Knowing an agent claims to be research-agent is worthless if anyone holding a leaked token can make the same claim. Each question maps to a battle-tested piece of infrastructure.
+
+## WHO — Identity as a URI (SPIFFE/SPIRE)
+
+SPIFFE — the Secure Production Identity Framework for Everyone — starts from one disarmingly simple idea: every workload gets a URI for an identity.
+
+<Callout tone="info" title="The anatomy of a SPIFFE ID">
+  `spiffe://atcp.test/agent/research-agent`
+
+  **Trust Domain** (atcp.test) — the security and administrative boundary. Every principal within it shares a root of trust.
+
+  **Path** (/agent/research-agent) — the workload's identity within the domain. You define the naming scheme; SPIRE enforces it.
+</Callout>
+
+That URI is not a label floating around in a config file. It is embedded inside an X.509 certificate — called an SVID (SPIFFE Verifiable Identity Document) — in the certificate Subject Alternative Name field. Because it is a real certificate, it plugs directly into mutual TLS, the standard mechanism services already use to authenticate to each other. [1, 2]
+
+In this architecture the certificate is:
+
+- Issued automatically by SPIRE, the reference implementation of SPIFFE
+- Short-lived — valid for 60 seconds in this design
+- Rotated before expiry with zero downtime
+- Tied to the workload OS-level identity — its Unix UID, process ID, binary hash
+
+The agent never configures its own identity. It just asks the local Workload API for one:
+
+```go
+client, _ := workloadapi.New(ctx,
+    workloadapi.WithAddr("unix:///run/spire/sockets/workload_api.sock"))
+svid, _ := client.FetchX509SVID(ctx)
+// svid.ID = "spiffe://atcp.test/agent/research-agent"
+```
+
+The crucial detail: the OS kernel enforces who is allowed to call that Unix socket. An agent cannot lie about its UID, because the kernel — not the agent — reports it. That is the non-spoofable foundation everything else rests on. [3]
+
+Registering a new agent is a single command — and notice what is absent: no certificate files to ship, no secrets to inject:
+
+```shell
+spire-server entry create \
+    -spiffeID  spiffe://atcp.test/agent/research-agent \
+    -parentID  spiffe://atcp.test/spire/agent/node-1 \
+    -selector  unix:uid:1001
+```
+
+From that moment, any process running as UID 1001 on node-1 that asks the Workload API receives the identity research-agent. Identity is **issued**, never configured.
+
+<ScrollScene>
+  <ScrollSceneSticky>
+    <ArchitectureDiagram spec={spiffeWorkloadIdentityDiagram} />
+  </ScrollSceneSticky>
+  <ScrollSceneSteps>
+
+    <Step trigger="overview">
+      ### The SPIFFE workload identity architecture
+
+      Three zones, one trust model. The Identity Control Plane on the left acts
+      as the CA. The Workload Node in the centre attests both itself and its
+      processes. Relying services on the right verify SVIDs without calling home
+      to the issuer.
+
+      Every arrow in this diagram is cryptographically attested. Nothing flows
+      on trust alone.
+    </Step>
+
+    <Step trigger="identity-plane">
+      ### The Identity Control Plane
+
+      The SPIRE Server is the certificate authority. It holds registration
+      entries that map selectors (UID, process hash, Kubernetes pod labels) to
+      SPIFFE IDs. The Server Datastore persists the trust bundle, entries, and
+      signing keys.
+
+      No agent configures its own identity. Identity is a fact the
+      infrastructure asserts, not a value the workload supplies.
+    </Step>
+
+    <Step trigger="node-attestation">
+      ### Node attestation
+
+      Before any workload can get an SVID, its host must prove itself. The
+      SPIRE Agent performs node attestation — presenting platform evidence (a
+      Kubernetes service account token, an AWS instance identity document, a
+      TPM quote) to the Server.
+
+      Once the node is trusted, the Server issues the Agent its own SVID. The
+      Agent caches this and the trust bundle locally. The control plane can go
+      offline and workloads keep running.
+    </Step>
+
+    <Step trigger="workload-attestation">
+      ### Workload attestation
+
+      When the Research Agent calls the local Workload API, the SPIRE Agent
+      checks with the kernel: what UID owns this process? If it matches a
+      registered selector (unix:uid:1001), the Agent issues a short-lived SVID.
+
+      The workload never touches a secret. The kernel is the attestor, and the
+      kernel cannot be spoofed by the process it is attesting.
+    </Step>
+
+    <Step trigger="mtls">
+      ### mTLS to every service
+
+      The Research Agent presents its SVID to Service A and Service B. Both
+      services verify the certificate against the shared trust bundle — no
+      central call, no lookup.
+
+      When the SVID rotates in 60 seconds, the new certificate replaces the old
+      one automatically. There is no manual rotation step, ever.
+    </Step>
+
+  </ScrollSceneSteps>
+</ScrollScene>
+
+### Why 60 seconds is the whole point
+
+<Callout tone="warn" title="The TTL is the threat model">
+  A short-lived SVID inverts the threat model. A stolen credential that is
+  worthless in a minute changes the entire economics of an attack. The
+  60-second window is not a limitation you tolerate — it is the security
+  guarantee.
+</Callout>
+
+SPIFFE itself does not mandate 60 seconds — that is a configurable TTL, and 60s is an aggressive choice this design makes deliberately. The trade-off is real: shorter TTLs mean more signing load on the SPIRE server and tighter clock-sync requirements. The right question is always: what does this cost, and what does it buy?
+
+There is a resilience bonus too. The SPIRE server signs SVIDs but does not sit in the runtime path — agents talk to a local SPIRE agent that caches their identities. So the central control plane can go down and your agents keep running on cached credentials. The system degrades gracefully instead of failing all at once.
+
+## WHAT — Policy as code (OPA + Rego)
+
+SPIFFE tells you who. It says nothing about what an agent may do. That is a separate concern, and conflating the two is a classic architectural mistake.
+
+Open Policy Agent (OPA) is a CNCF-graduated, general-purpose policy engine. Its single most important design property: it decouples policy decision-making from policy enforcement. [4, 5] Your services do not decide whether a call is allowed — they ask OPA, passing structured JSON, and OPA answers. The consequences are enormous:
+
+- Policy lives in one place, not scattered across a dozen codebases
+- Policy changes without redeploying any service
+- Policy is testable, version-controlled, and auditable like any other code
+
+Policies are written in Rego, OPA's declarative language. Here is the core of an agent-authorization policy:
+
+```rego
+package agent.authz
+
+default allow = false   # fail closed — misconfigured agents get nothing
+
+allow if {
+    input.agent.spiffe_id == "spiffe://atcp.test/agent/research-agent"
+    input.action          == "read:customer-db"
+    not token_revoked
+}
+
+token_revoked if revocation_cache[input.token.jti]
+```
+
+Read the very first line again: `default allow = false`. Fail closed. A misconfigured agent gets nothing, not everything. This is the difference between a security control and security theater. Defaults decide what happens when something goes wrong — and something always goes wrong.
+
+A few evaluations make the behavior concrete:
+
+- **research-agent + read:customer-db** → allow: true (matches registered scope)
+- **research-agent + delete:customer-db** → allow: false (out of granted scope)
+- **any agent, revoked JTI** → allow: false (token in revocation cache)
+
+## The PEP — the gate that cannot be walked around
+
+Policy is meaningless if an agent can simply not ask. A bouncer who can be ignored is just a person standing near a door.
+
+The Policy Enforcement Point (PEP) is the answer. It is a sidecar that sits between the agent and every tool or API, wired so the agent has no network path to the resource except through it. Bypassing policy stops being a matter of discipline and becomes a network-level impossibility.
+
+<Callout tone="accent" title="What the PEP checks on every call">
+  1. **Verify the token signature** — was this minted by our token exchange?
+  2. **Verify proof of possession** — does this agent actually hold the matching private key?
+  3. **Check revocation** — is this JTI in the revocation cache?
+  4. **Ask OPA** — is this action within the granted scope?
+  5. **Emit a decision event** — append the outcome to the audit log
+
+  Fail any step, and the call dies. The agent never reaches the resource.
+</Callout>
+
+## The part that is unique to AI: the delegation chain
+
+AI agents spawn sub-agents, and each agent can hand work — and authority — to the next. Every hop has to be governed, or your carefully scoped top-level agent leaks its full power downstream.
+
+The enforcement mechanism is Biscuit, an authorization token (now an Eclipse Foundation project) with one property that makes it perfect for this: **offline attenuation**. From a valid Biscuit, the holder can mint a new one with fewer rights — without ever talking back to the issuer. Each hop appends a cryptographically signed block, and the token can only ever be restricted, never widened. [6, 7]
+
+That is the rule the whole chain depends on:
+
+```
+scope[hop N]  ⊆  scope[hop N-1]      must hold
+budget[hop N] ≤  budget[hop N-1]     must hold
+```
+
+<Callout tone="warn" title="The cryptographic guarantee">
+  A compromised agent cannot grant its sub-agent more power than it has itself.
+  Not "should not" — **cannot**. The math forbids it.
+
+  An attacker who fully owns the Research Agent still cannot conjure delete:*
+  out of a token that only carries read:*. This is what it means to push a
+  security property out of the realm of policy and into the realm of
+  cryptography.
+</Callout>
+
+## Revocation in under a second (CAEP)
+
+A token that expires in 60 seconds is good. But when an agent goes rogue, blows its budget, or the human withdraws consent, 60 seconds is 60 seconds too long. You need the token dead **now**.
+
+This is what CAEP is for. The source material sometimes calls it the Continuous Access Evaluation Protocol — that was its original name. Under the OpenID Foundation it is now formally the **Continuous Access Evaluation Profile**, a profile of the Shared Signals Framework (SSF). Same idea, current name. [8, 9]
+
+CAEP is push-based revocation. Instead of every PEP polling "is this still valid?", a central transmitter broadcasts a revocation event the instant something changes:
+
+```json
+{
+  "type": "session_revoked",
+  "subject": "spiffe://atcp.test/agent/research-agent",
+  "jti": "jti-abc",
+  "reason": "budget_exceeded",
+  "ts": "2026-05-28T10:00:04Z"
+}
+```
+
+Under a network partition, when the transmitter is unreachable? The PEP fails closed on anything genuinely uncertain. Tokens with a valid, unexpired local cache entry keep working; everything ambiguous is denied. The system never fails open.
+
+Major identity providers — Google, Apple, Okta, and others — have been adopting SSF and CAEP, which is a strong signal that this is not a fringe pattern but where the industry is heading. [9, 10]
+
+## Prove it, do not claim it: the hash-chained audit trail
+
+Every decision the system makes is appended to a hash-chained event log:
+
+```json
+{"event":"decision","agent":"spiffe://atcp.test/agent/research-agent","action":"read:customer-db","outcome":"allow","ts":"2026-05-28T10:00:01Z"}
+{"event":"decision","agent":"spiffe://atcp.test/agent/data-fetch","action":"delete:customer-db","outcome":"deny","reason":"scope_mismatch","ts":"2026-05-28T10:00:02Z"}
+{"event":"revoke_issued","jti":"jti-abc","reason":"budget_exceeded","ts":"2026-05-28T10:00:04Z"}
+```
+
+Each entry carries the SHA-256 hash of the previous entry plus its own. Tamper with any single record and every subsequent hash breaks. The chain is the proof.
+
+A system built this way can **prove** its own correctness instead of asserting it:
+
+- **In-scope calls allowed, out-of-scope denied** — read it off the decision events
+- **Revocation under 1 second** — measure the gap between revoke_issued and the next denial for that token
+- **Fail-closed** — during a partition, cached tokens work, uncertain calls deny, nothing fails open
+- **Unbypassability** — anti-join: every resource access must have a matching allow — zero orphans
+- **Attenuation** — every chain check confirms scope ⊆ parent, budget ≤ parent
+
+"Our system is secure" is a claim. A repeatable query that returns zero violations is evidence. Aim for the second one.
+
+## Why this matters specifically for AI
+
+Traditional software does not spin up sub-processes that autonomously call external APIs and spend real money. Agents do — and that creates risks that simply did not exist before:
+
+- **Agent calls APIs beyond its task** → scope enforcement via OPA
+- **Agent spawns a sub-agent more powerful than itself** → monotonic attenuation via Biscuit
+- **A compromised agent acts indefinitely** → 60s SVID TTL + sub-second revocation
+- **No way to trace which agent did what** → SPIFFE ID stamped on every audit event
+- **Agent overspends the budget** → budget accountant + CAEP revocation
+- **One shared API key for all agents** → per-agent cryptographic identity
+
+## The takeaways worth keeping
+
+**Identity first.** Without SPIFFE you do not know who the agent is, and every other control is built on sand.
+
+**Fail closed by default.** `default allow = false` means a broken config yields nothing, not everything.
+
+**The PEP is the guarantee.** Policy you can route around is decoration. Make bypass a network impossibility, not a rule.
+
+**Delegation must narrow, never widen.** Biscuit cryptographic attenuation means an agent literally cannot over-grant — even when fully compromised.
+
+**Revocation must be instant.** A five-minute expiry gives a rogue agent five minutes to do damage. Push it, do not poll it.
+
+**Prove it, do not claim it.** An event log plus a hash chain turns "trust us" into a verifiable, repeatable fact.
+
+None of these primitives are exotic anymore. SPIFFE/SPIRE, OPA, Biscuit, and CAEP/SSF are all open, mature, and adopted in production by serious organizations. The work is not inventing the pieces — it is composing them with the discipline this post describes. That composition is exactly the job of a solution architect.
+
+## References
+
+1. SPIFFE — Concepts and Overview. *spiffe.io* — https://spiffe.io/docs/latest/spiffe-about/spiffe-concepts/
+2. Palo Alto Networks — What is SPIFFE? Universal Workload Identity Framework Guide — https://www.paloaltonetworks.com/cyberpedia/what-is-spiffe
+3. SPIFFE — Working with SVIDs (Workload API and Unix socket model) — https://spiffe.io/docs/latest/deploying/svids/
+4. Open Policy Agent — Official documentation — https://www.openpolicyagent.org/docs
+5. Cloud Native Computing Foundation — Open Policy Agent (OPA) project page — https://www.cncf.io/projects/open-policy-agent-opa/
+6. Eclipse Biscuit — Introduction (offline attenuation) — https://www.biscuitsec.org/docs/getting-started/introduction/
+7. Biscuit — Delegation in microservices — https://www.biscuitsec.org/docs/guides/microservices/
+8. OpenID Foundation — Continuous Access Evaluation Profile 1.0 — https://openid.net/specs/openid-caep-1_0-final.html
+9. OpenID Foundation — Shared Signals Working Group — https://openid.net/wg/sharedsignals/
+10. SGNL — Why CAEP matters now — https://sgnl.ai/2025/12/introducing-guide-to-caep-white-paper/
