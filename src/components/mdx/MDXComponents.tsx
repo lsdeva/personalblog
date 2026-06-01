@@ -5,6 +5,7 @@ import { Figure } from './Figure'
 import { ArchitectureDiagram } from '@/components/diagram/ArchitectureDiagram'
 import { ScrollScene, ScrollSceneSticky, ScrollSceneSteps } from '@/components/scroll/ScrollScene'
 import { Step } from '@/components/scroll/Step'
+import { ResearchLineage } from '@/components/research/ResearchLineage'
 
 // Map HTML tags → styled equivalents + expose custom components to MDX.
 // Only the tag overrides need explicit typing; custom components are passed through.
@@ -20,4 +21,5 @@ export const mdxComponents: MDXComponents = {
   ScrollSceneSticky,
   ScrollSceneSteps,
   Step,
+  ResearchLineage,
 }

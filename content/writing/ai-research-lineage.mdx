@@ -1,0 +1,34 @@
+---
+title: The Architecture of AI Progress, 2016–2025
+description: An interactive map of 56 foundational papers across nine research swim-lanes — how self-attention, diffusion, and reinforcement learning intertwined to produce today's frontier AI.
+publishedAt: '2026-06-01'
+tags: [research, machine-learning, architecture, history]
+---
+
+Every AI model you interact with today traces its lineage to a handful of papers published in the last decade. The Transformer that powers every LLM. DDPM that underlies every image generator. PPO that made ChatGPT helpful instead of merely capable. These weren't isolated discoveries — they form an interconnected lattice where each architecture either extended, inspired, or enabled the next.
+
+The map below plots 56 foundational papers across nine research swim-lanes, with time flowing left to right from 2016 to 2025. **Hover** any node for the paper's one-paragraph contribution. **Click** a node to isolate every direct predecessor and successor. The directed edges encode the relationship type: *extends* (direct architectural evolution), *inspires* (conceptual influence across domains), *combines* (two lineages merged into one), *enables* (makes the target technically feasible), *forks* (shared origin, diverging paths).
+
+<ResearchLineage />
+
+## Reading the map
+
+**The Transformer trunk** (centre, highlighted in blue) is the spine. "Attention Is All You Need" (2017) is the single node with the most outgoing edges — it forked into BERT's bidirectional encoders and GPT's autoregressive decoders from the same mathematical primitive, then extended into ViT for image patches and Whisper for audio. Everything downstream traces back to that one change: replacing recurrence with self-attention.
+
+**CLIP is the graph's junction node.** Trained on 400 million image-text pairs, it created a shared embedding space that every subsequent multimodal model depends on. Click CLIP in the map and count the outgoing edges: DALL-E 1, DALL-E 2, Stable Diffusion, SAM, and LLaVA all draw on it simultaneously — five different swim-lanes lit up by a single 2021 paper.
+
+**The diffusion lane** (DDPM → IDDPM → Stable Diffusion → Sora) runs parallel to the language trunk and only intersects at architectural merge points. The most surprising one: AlphaFold 3 borrowed the diffusion denoising process for molecular structure prediction. A technique invented to generate photorealistic faces ended up predicting how proteins fold.
+
+**The alignment layer** tells a tighter story than most people realize. PPO (2017) enabled RLHF (2018). RLHF powered InstructGPT (2022). InstructGPT became ChatGPT's behavioural backbone. Constitutional AI forked from that same RLHF root: instead of requiring thousands of human preference labels, it uses the model itself to evaluate outputs against written principles — a self-supervised alignment approach. Both paths converge at today's production assistants.
+
+## What changed in 2024–2025
+
+The rightmost column represents a qualitative shift in where intelligence is located. OpenAI o1 introduced inference-time compute scaling — spending more tokens *thinking* at query time rather than scaling training. DeepSeek-R1 demonstrated that pure reinforcement learning, with no human-annotated reasoning chains, could discover step-by-step reasoning independently and then release it fully open-source. Both inspire the reasoning cluster at the bottom of the 2025 column: Gemini 2.5, Qwen 3, o3.
+
+The agents cluster completes a ten-year arc. Codex (2021) proved a fine-tuned LLM could write functions. Generative Agents (2023) proved LLMs could maintain persistent memory and coordinate across a simulated town. LLaMA 3 (2024) provided the open-source foundation. By 2025 these threads combined into systems that autonomously resolve real GitHub issues — the lineage from "AI that autocompletes code" to "AI that closes tickets."
+
+**DeepSeek-V3** is perhaps the most geopolitically significant node on the map. A 671B mixture-of-experts model trained for $6 million — roughly 1% of GPT-4's estimated budget — matching frontier performance. The efficiency line running through Chinchilla (compute-optimal training ratios), LoRA (parameter-efficient fine-tuning), and Mixtral (sparse MoE routing) converged at a point where frontier capability no longer requires frontier-scale infrastructure spend. That convergence changes who can build at the frontier.
+
+---
+
+The map doesn't capture everything — noticeably absent are Flash Attention, the evaluation literature (MMLU, HumanEval, HELM), and most of the mixture-of-experts theory work that preceded Mixtral. But the 56 papers here are sufficient to explain every major architectural decision in every model available today. Most of what looks like a discontinuous leap in AI capability is, on closer inspection, an edge in this graph that became visible.

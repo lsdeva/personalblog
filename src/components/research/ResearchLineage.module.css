@@ -1,0 +1,42 @@
+/* SVG text elements need CSS-level fill so dark-theme can override them.
+   SVG presentation attributes have lower specificity than class rules. */
+
+.nodeLabel {
+  paint-order: stroke fill;
+  stroke-width: 2.5px;
+  fill: #111;
+  stroke: rgba(255, 255, 255, 0.88);
+  font-family: var(--font-sans);
+}
+
+.yearLabel {
+  fill: rgba(0, 0, 0, 0.28);
+  font-family: var(--font-sans);
+}
+
+.laneLabel {
+  fill: rgba(0, 0, 0, 0.2);
+}
+
+:global([data-theme='dark']) .nodeLabel {
+  fill: #e2dfd8;
+  stroke: rgba(0, 0, 0, 0.84);
+}
+
+:global([data-theme='dark']) .yearLabel {
+  fill: rgba(255, 255, 255, 0.46);
+}
+
+:global([data-theme='dark']) .laneLabel {
+  fill: rgba(255, 255, 255, 0.3);
+}
+
+.canvas {
+  display: block;
+  cursor: grab;
+  user-select: none;
+}
+
+.canvas:active {
+  cursor: grabbing;
+}
