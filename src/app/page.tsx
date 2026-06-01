@@ -11,6 +11,7 @@ import type { ComponentType } from 'react'
 const mdxModules: Record<string, () => Promise<{ default: ComponentType }>> = {
   'agent-workload-identity': () => import('../../content/writing/agent-workload-identity.mdx'),
   'agentic-authn-authz': () => import('../../content/writing/agentic-authn-authz.mdx'),
+  'ai-research-lineage': () => import('../../content/writing/ai-research-lineage.mdx'),
   'build-skills-not-agents': () => import('../../content/writing/build-skills-not-agents.mdx'),
   'fhir-integration-on-eks': () => import('../../content/writing/fhir-integration-on-eks.mdx'),
   'legacy-to-cloud-migration-intelligence': () =>
