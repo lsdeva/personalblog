@@ -293,14 +293,17 @@ interface TooltipState {
 export function ResearchLineage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
+  const gRef = useRef<SVGGElement>(null)
 
   const [xform, setXform] = useState<Xform>({ tx: 0, ty: 0, scale: INIT_SCALE })
   const xformRef = useRef<Xform>({ tx: 0, ty: 0, scale: INIT_SCALE })
+  const [animating, setAnimating] = useState(false)
 
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [showHint, setShowHint] = useState(false)
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const animTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isDragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 })
@@ -310,11 +313,39 @@ export function ResearchLineage() {
     setXform(next)
   }
 
+  function applyXformAnimated(next: Xform) {
+    setAnimating(true)
+    applyXform(next)
+    if (animTimer.current) clearTimeout(animTimer.current)
+    animTimer.current = setTimeout(() => setAnimating(false), 480)
+  }
+
+  function fitToScreen() {
+    const container = containerRef.current
+    if (!container) return
+    const scale = Math.min(container.clientWidth / 1200, 1)
+    applyXformAnimated({ tx: 0, ty: 0, scale })
+  }
+
   function flashHint() {
     setShowHint(true)
     if (hintTimer.current) clearTimeout(hintTimer.current)
     hintTimer.current = setTimeout(() => setShowHint(false), 1600)
   }
+
+  // Auto-fit whenever the graph scrolls into view (>= 50% visible)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) fitToScreen()
+      },
+      { threshold: 0.5 },
+    )
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
 
   // Non-passive wheel listener: zoom only when Ctrl/Meta held (covers pinch on trackpad too).
   // Plain scroll falls through to the page — no preventDefault — so Lenis handles it normally.
@@ -327,6 +358,7 @@ export function ResearchLineage() {
         flashHint()
         return
       }
+      setAnimating(false)
       e.preventDefault()
       const { tx, ty, scale } = xformRef.current
       const rect = svg!.getBoundingClientRect()
@@ -347,10 +379,12 @@ export function ResearchLineage() {
     return () => {
       svg.removeEventListener('wheel', onWheel)
       if (hintTimer.current) clearTimeout(hintTimer.current)
+      if (animTimer.current) clearTimeout(animTimer.current)
     }
   }, [])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setAnimating(false)
     isDragging.current = true
     dragStart.current = {
       x: e.clientX,
@@ -550,7 +584,14 @@ export function ResearchLineage() {
               ))}
             </defs>
 
-            <g transform={`translate(${xform.tx},${xform.ty}) scale(${xform.scale})`}>
+            <g
+              ref={gRef}
+              style={{
+                transform: `translate(${xform.tx}px, ${xform.ty}px) scale(${xform.scale})`,
+                transformOrigin: '0 0',
+                transition: animating ? 'transform 0.45s cubic-bezier(0.25, 1, 0.5, 1)' : 'none',
+              }}
+            >
 
               {/* Swim lane backgrounds */}
               {LANES.map((lane, i) => (
