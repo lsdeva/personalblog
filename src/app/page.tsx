@@ -18,6 +18,8 @@ const mdxModules: Record<string, () => Promise<{ default: ComponentType }>> = {
     import('../../content/writing/legacy-to-cloud-migration-intelligence.mdx'),
   'prompt-injection-defense-layer': () =>
     import('../../content/writing/prompt-injection-defense-layer.mdx'),
+  'trustworthy-agent-governance': () =>
+    import('../../content/writing/trustworthy-agent-governance.mdx'),
 }
 
 interface InlineArticle {
