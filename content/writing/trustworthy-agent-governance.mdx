@@ -5,6 +5,7 @@ publishedAt: '2026-06-03'
 tags: [security, agents, governance, identity]
 ---
 
+import { atcpOverviewDiagram } from '@/diagrams/atcp-overview'
 import { seqP1 } from '@/diagrams/seq-p1-human-delegation'
 import { seqP2 } from '@/diagrams/seq-p2-default-deny'
 import { seqP3 } from '@/diagrams/seq-p3-svid-issuance'
@@ -180,6 +181,72 @@ Same honest limitation as P8: completion is currently self-reported. The fix is 
 ---
 
 ## How they fit together
+
+<ScrollScene>
+  <ScrollSceneSticky>
+    <ArchitectureDiagram spec={atcpOverviewDiagram} />
+  </ScrollSceneSticky>
+  <ScrollSceneSteps>
+
+    <Step trigger="overview">
+      ### One action, eleven processes
+
+      Every agent action traverses the full system. The left side establishes
+      authority before anything runs. The centre executes under that authority.
+      The right side enforces limits and records the evidence.
+
+      Scroll to trace each phase.
+    </Step>
+
+    <Step trigger="establish-authority">
+      ### P1 – P3: Establishing authority
+
+      A human authenticates and signs a scoped mandate (P1). SPIRE binds the
+      agent's identity to its workload — non-spoofable, auto-rotated (P3). OPA
+      seeds the policy engine with an empty scope set so the agent starts with
+      zero privilege (P2).
+
+      Nothing downstream runs until this triangle is complete.
+    </Step>
+
+    <Step trigger="exercise-authority">
+      ### P4 + P6 + P9: Exercising authority
+
+      The Token Exchange fuses the mandate with the agent's SVID into a
+      key-bound IBCT — the human's authority and the agent's cryptographic
+      identity in one token (P4). If the action is high-risk, it pauses for
+      explicit human consent before the token is minted (P9).
+
+      Every call then passes through the co-located PEP, which verifies the
+      token, checks revocation, confirms proof-of-possession, and asks OPA —
+      before forwarding a single byte (P6).
+    </Step>
+
+    <Step trigger="delegation">
+      ### P5: Delegation that can only narrow
+
+      An agent can hand work to a sub-agent, but the chained Biscuit token
+      enforces monotonic attenuation — scope and budget can only shrink,
+      never grow. A compromised sub-agent cannot escalate its own authority.
+      The verifier walks every block in the chain; widening is structurally
+      rejected.
+    </Step>
+
+    <Step trigger="safety-controls">
+      ### P7 – P10: The safety controls
+
+      Every allowed call reports spend to the Budget Service. When the ceiling
+      is hit, revocation fires automatically via the CAEP kill-switch — reaching
+      every PEP in the fleet in under a second, including under a control-plane
+      partition (P7 + P8).
+
+      Every governed event — mandate issuance, token mint, decision, spend,
+      completion — is appended to the tamper-evident, hash-chained audit log.
+      Tampering with any entry breaks the chain (P10 + P11).
+    </Step>
+
+  </ScrollSceneSteps>
+</ScrollScene>
 
 The processes form a single chain, traversed in order on every agent action:
 

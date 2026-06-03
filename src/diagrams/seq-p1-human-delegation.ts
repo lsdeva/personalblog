@@ -14,7 +14,7 @@ export const seqP1: SequenceDiagramSpec = {
     { from: 'human', to: 'oidc', label: 'authenticate (OIDC + PKCE)' },
     { from: 'oidc', to: 'human', label: 'ID token (signed identity assertion)', dashed: true },
     { from: 'human', to: 'vc-issuer', label: 'POST /mandate {scope, budget_cents, ttl, agent}' },
-    { from: 'vc-issuer', to: 'vc-store', label: 'verify ID token · sign mandate (Ed25519 JWS)' },
+    { from: 'vc-issuer', to: 'vc-issuer', label: 'verify ID token + sign mandate (Ed25519 JWS)' },
     { from: 'vc-issuer', to: 'vc-store', label: 'store mandate by ref' },
     { from: 'vc-issuer', to: 'human', label: '201 {mandate_ref, vc_jwt}', dashed: true },
   ],

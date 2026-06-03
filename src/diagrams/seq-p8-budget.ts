@@ -11,7 +11,7 @@ export const seqP8: SequenceDiagramSpec = {
     { id: 'caep', label: 'CAEP Tx' },
   ],
   steps: [
-    { from: 'pep', to: 'agent', label: 'request (allowed)', dashed: true },
+    { from: 'agent', to: 'pep', label: 'request' },
     { from: 'pep', to: 'budget', label: 'POST /spend {jti, cents} (async, fire-and-forget)' },
     { from: 'budget', to: 'budget', label: 'atomic increment of running total' },
     {

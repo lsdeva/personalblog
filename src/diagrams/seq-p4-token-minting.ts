@@ -16,12 +16,13 @@ export const seqP4: SequenceDiagramSpec = {
     { from: 'vc-issuer', to: 'token-ex', label: 'vc_jws (signed mandate)', dashed: true },
     { from: 'token-ex', to: 'token-ex', label: 'verify VC signature offline (Ed25519 pub key)' },
     { from: 'token-ex', to: 'opa', label: 'policy: scope ⊆ mandate.scope, budget ≤ mandate.budget' },
+    { from: 'opa', to: 'token-ex', label: 'allow', dashed: true },
+    { from: 'token-ex', to: 'token-ex', label: 'mint IBCT (JWT, Ed25519) cnf.jwk = agent SVID public key' },
     {
       from: 'token-ex', to: 'agent',
-      label: 'mint IBCT (JWT, Ed25519) cnf.jwk = agent SVID public key', dashed: true,
+      label: '201 {ibct, exp, jti} — key-bound', dashed: true,
       note: 'PoP binding via cnf.jwk: only the agent holding the matching private key can use this token (RFC 7800)',
     },
-    { from: 'token-ex', to: 'agent', label: '201 {ibct, exp, jti} — key-bound', dashed: true },
   ],
   auditEvents: ['token_minted / jti / mandate_ref / cnf.jwk'],
 }
