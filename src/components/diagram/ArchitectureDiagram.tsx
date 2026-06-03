@@ -342,18 +342,32 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
                   markerEnd={`url(#arrow-${accent ? 'accent' : 'base'}-${spec.id})`}
                   opacity={0.3}
                 />
-                {edge.label && (
-                  <text
-                    x={midX + 10}
-                    y={midY - 6}
-                    fill="var(--color-muted)"
-                    fontFamily="var(--font-mono)"
-                    fontSize="10"
-                    letterSpacing="0.08em"
-                  >
-                    {edge.label}
-                  </text>
-                )}
+                {edge.label && (() => {
+                  const approxW = edge.label.length * 7
+                  return (
+                    <g>
+                      <rect
+                        x={midX - approxW / 2 - 4}
+                        y={midY - 18}
+                        width={approxW + 8}
+                        height={14}
+                        fill="var(--color-bg)"
+                        rx="2"
+                      />
+                      <text
+                        x={midX}
+                        y={midY - 7}
+                        textAnchor="middle"
+                        fill="var(--color-muted)"
+                        fontFamily="var(--font-mono)"
+                        fontSize="10"
+                        letterSpacing="0.08em"
+                      >
+                        {edge.label}
+                      </text>
+                    </g>
+                  )
+                })()}
               </g>
             )
           })}
