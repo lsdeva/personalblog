@@ -1,0 +1,230 @@
+---
+title: "What a trustworthy agent-governance system has to do"
+description: Eleven processes, and why each one earns its place. A pattern catalog drawn from building a reference implementation against the OWASP ASI threat model, for anyone designing systems where AI agents act on behalf of humans.
+publishedAt: '2026-06-03'
+tags: [security, agents, governance, identity]
+---
+
+import { seqP1 } from '@/diagrams/seq-p1-human-delegation'
+import { seqP2 } from '@/diagrams/seq-p2-default-deny'
+import { seqP3 } from '@/diagrams/seq-p3-svid-issuance'
+import { seqP4 } from '@/diagrams/seq-p4-token-minting'
+import { seqP5 } from '@/diagrams/seq-p5-multihop-delegation'
+import { seqP6 } from '@/diagrams/seq-p6-pep-enforcement'
+import { seqP7 } from '@/diagrams/seq-p7-revocation'
+import { seqP8 } from '@/diagrams/seq-p8-budget'
+import { seqP9 } from '@/diagrams/seq-p9-consent'
+import { seqP10 } from '@/diagrams/seq-p10-audit-trail'
+import { seqP11 } from '@/diagrams/seq-p11-completion'
+
+*Eleven processes, and why each one earns its place. A pattern catalog drawn from building a reference implementation against the OWASP ASI threat model, for anyone designing systems where AI agents act on behalf of humans.*
+
+## The problem nobody quite named in time
+
+For most of 2024 and 2025, organizations rushed AI agents into production using a model they would never have accepted for human users — a single shared API key, no per-actor attribution, no kill switch, no chain of authority back to anyone in particular. By early 2026, a scan of approximately 2,000 MCP servers found that every single one lacked authentication. Agent cards in the A2A protocol carry self-declared identities with no attestation binding. When agents subcontract work to other agents, no mechanism verifies the delegating agent's authority, constrains the sub-agent's scope, or records the delegation for audit.
+
+The shape of this problem is not new — it's the **Non-Human Identity (NHI)**, now scaled up by autonomy. What is new is the *consequence*: when an action goes wrong, the question *"who authorized this?"* has no answer. The system fixed itself, took an action, spent money, or accessed data — and the chain back to a human authority simply doesn't exist.
+
+You can patch around this with better logging, richer traces, more dashboards. But that's monitoring the *symptom*. The real fix is structural — **every action carries provenance to the human who authorized that class of action, by construction, not by retrospective log-mining.** Observability tells you what the system did. Attribution tells you whose authority it ran under. The first is something you instrument, the second has to be in the request context, signed, before the action runs. If it wasn't there at the moment of action, there's nothing to recover.
+
+The rest of this post is a catalog of the eleven processes a trustworthy agent-governance system has to implement to make attribution structural. The catalog comes from building a reference implementation (ATCP, Agent Trust Control Plane) and pressure-testing it against the OWASP ASI 2026 threat model. The processes are the load-bearing ones — each is mapped to the standard or pattern it draws from so you can find your own way to it.
+
+## The principle that resolves the eleven processes into one system
+
+Before the catalog, the underlying principle, because it organizes everything below:
+
+> **Every AI agent action must be traceable back to a human who explicitly authorized it, and the authority must be cryptographically attenuable, real-time revocable, and unbypassable by the agent itself.**
+
+That single sentence dictates the eleven processes. Each one is a property that sentence requires.
+
+## The eleven processes — what each one does, and why
+
+---
+
+### 1. Human Authority Delegation — the chain has to start somewhere
+
+<SequenceDiagram spec={seqP1} />
+
+A human authenticates (OIDC), then signs a **mandate** — a scoped capability grant with an explicit scope, a budget ceiling in integer cents, and a TTL. The mandate is a Verifiable Credential, Ed25519-signed, offline-verifiable.
+
+**Why it exists** The chain of authority has to have a *root*. That root has to be a human, and the human's authorization has to be *signed* (so it can be verified later without trusting the verifier). Without this, every downstream claim "the human said it was okay" is unprovable.
+
+**Maps to** W3C Verifiable Credentials for the signed grant, OIDC + OAuth 2.1 for the human-authentication front door. The mandate is the *human-anchored counterpart* to OAuth's machine-issued access token.
+
+---
+
+### 2. Agent Registration → Default-Deny — privilege is granted, never inherited
+
+<SequenceDiagram spec={seqP2} />
+
+A new agent registers, gets a SPIFFE workload identity from SPIRE, and is seeded with an *empty* scope set in the policy engine. The agent can do *nothing* until explicitly granted authority. No legacy privilege carries forward.
+
+**Why it exists** Most security holes in agent deployments come from agents inheriting broad authority by default — "the agent is in the prod cluster, so it has prod access." Default-deny inverts this: agents are *zero-privileged* until a mandate explicitly grants them something specific.
+
+**Maps to** The principle of least privilege, applied to NHIs. This is the operational counterpart to "agents must have unique, scoped, short-lived identities" that frameworks like the CSA Agentic Trust Framework and OWASP ASI have converged on.
+
+---
+
+### 3. Agent Identity Issuance (SPIFFE/SPIRE) — non-spoofable identity at the workload layer
+
+<SequenceDiagram spec={seqP3} />
+
+SPIRE issues each agent an X.509-SVID — a non-spoofable workload certificate carrying a SPIFFE ID like `spiffe://atcp.test/agent/{name}`. The certificate is auto-rotated. The identity is *bound to where the agent runs*, not to a secret it could share.
+
+**Why it exists** If an agent's identity is "whoever holds this API key," then any leak collapses attribution forever. SPIFFE binds identity to the workload's *attestation*, not to a transferable secret. Auto-rotation removes the long-lived-secret class of vulnerability.
+
+**Maps to** SPIFFE/SPIRE (CNCF graduated). This is the workload-identity standard that's converged across cloud-native and is now extending into the agent world.
+
+---
+
+### 4. Authority Token Minting (Single-Hop) — the human's grant meets the agent's identity
+
+<SequenceDiagram spec={seqP4} />
+
+An agent presents its SVID plus a `mandate_ref` to a Token-Exchange service. The exchange verifies the mandate signature offline, checks that the requested scope and budget are within the mandate's, and mints an **IBCT** (Invocation-Bound Capability Token). Critically, the token is *key-bound* — its `cnf.jwk` claim embeds the agent's SVID public key, so only the agent holding the matching private key can use it.
+
+**Why it exists** This is where the human's signed authority and the agent's cryptographic identity *fuse* into a single token. Without this fusion, you have two unconnected halves — a human-signed mandate, and an agent identity — and no way to say "this agent, acting under this human's authority, can do this specific thing." The PoP binding makes the token un-stealable: a leaked token is useless without the agent's private key.
+
+**Maps to** RFC 8693 (OAuth 2.0 Token Exchange) for the exchange semantics, RFC 7800 (JWT Proof-of-Possession) for the `cnf` binding, the Invocation-Bound Capability Token primitive described in Sunil Prakash's AIP paper (arXiv:2603.24775).
+
+---
+
+### 5. Authority Delegation to a Sub-Agent (A2A, Multi-Hop) — the chain extends without inflating
+
+<SequenceDiagram spec={seqP5} />
+
+An agent passes work to another agent by appending a **delegation block** to the token. Each block can *only narrow* — the sub-agent's scope must be a subset of its parent's scope, and its budget no greater than its parent's budget. A max depth limit caps chain length. The format is a Biscuit token; the chain lives inside the token itself.
+
+**Why it exists** Once agents can delegate to other agents, the question "did the sub-agent stay within what was authorized?" becomes critical. Monotonic attenuation makes widening *structurally impossible* — a sub-agent can't construct a wider block, because the verifier walks the chain and rejects any hop where scope or budget grew. The chain lives in the token, so verification is offline and stateless — no central call per hop, which is what keeps per-hop enforcement under ~10ms.
+
+**Maps to** Capability-token formats with append-only delegation — specifically [Biscuit](https://www.biscuitsec.org/) (Eclipse Foundation) with its Datalog-checked attenuation. Macaroons are a related lineage but use shared-secret signing, which has a forgery problem at scale. Biscuit's public-key signatures make every hop independently verifiable. This sits next to RFC 8693's `act`-claim nesting but uses an append-only capability format rather than nested JWTs.
+
+---
+
+### 6. Protected Resource Access (PEP Enforcement) — the action must pass through enforcement
+
+<SequenceDiagram spec={seqP6} />
+
+Every call to a resource (tool, API, peer agent) is intercepted by a co-located Policy Enforcement Point (PEP) that verifies the token signature, checks a local revocation cache, verifies a DPoP proof (the agent signs a per-request proof with its SVID private key, proving it holds the bound key), evaluates the policy engine for the requested action, and either forwards or denies — emitting a structured decision event either way. The resource server, separately, emits a `resource_access` event on every request it handles.
+
+**Why it exists** Authorization that the agent itself enforces is no enforcement at all. The PEP sits *outside* the agent's trust boundary — a compromised agent cannot bypass it. The independent `resource_access` event from the resource server lets you prove **unbypassability**: every served resource access must have a matching `decision(allow)` event from the PEP. If there's a resource access with no preceding allow-decision, something went around the PEP. (You need two independent vantage points because a single source cannot catch its own bypass.)
+
+**Maps to** Service-mesh authorization patterns (Envoy `ext_authz`, Istio `AuthorizationPolicy`) for sidecar-based PEP deployment, OPA/Rego as the policy engine, OAuth 2.0 DPoP (RFC 9449) for the per-request proof-of-possession.
+
+---
+
+### 7. Revocation (< 1 Second Kill-Switch) — authority must be retractable in real time
+
+<SequenceDiagram spec={seqP7} />
+
+Any party can revoke a token by its JTI. The revocation is pushed as a signed Security Event Token via **CAEP** (Continuous Access Evaluation Protocol, part of the OpenID Shared Signals Framework) to every PEP. Each PEP adds the JTI to a local in-memory revocation cache; the next call with that token is denied in under a second — including under a central-plane partition, because the cache is local and no network call is needed.
+
+**Why it exists** "Rotate the credential" doesn't work when the credential is a token that's still cryptographically valid for the next hour. You need a way to *invalidate* a specific token *now* across the entire fleet, and you need the cost of that operation to scale with *events*, not with fleet size (otherwise revoking a token in a million-agent deployment becomes operationally infeasible). Push beats poll here for the same reason webhooks beat polling: latency and load both win.
+
+**Maps to** OpenID Shared Signals Framework for the push protocol, CAEP for the specific revocation semantics. This is the same mechanism enterprise IdPs are adopting for human sessions — it generalizes cleanly to NHIs.
+
+---
+
+### 8. Budget Accounting and Ceiling Enforcement — financial limits are enforced automatically
+
+<SequenceDiagram spec={seqP8} />
+
+Every allowed resource call reports a spend (integer cents) to a budget service. The service tracks per-token running totals. When the ceiling is reached, it automatically triggers revocation via the same CAEP path as P7.
+
+**Why it exists** If an agent can spend money, the authority granted to it has to include an explicit financial ceiling, and that ceiling has to be enforced automatically (not by a human noticing the bill). This is the operational counterpart to the "agents can take economically consequential actions" risk the field has been raising. Integer cents (never floats) prevents the rounding-error class of bug.
+
+<Callout tone="warn" title="Known gap">
+  Spend is self-reported by the agent. A compromised agent can under-report. The fix is **attested completion** — the resource server reports actual cost back — a known limitation deferred for now, demonstrated rather than hidden.
+</Callout>
+
+---
+
+### 9. Consent Step-Up for High-Risk Actions — human-in-the-loop where it matters
+
+<SequenceDiagram spec={seqP9} />
+
+Before minting a token for a high-risk action (high budget, sensitive scope, novel pattern), the token-exchange evaluates the action against a consent policy. High-risk actions return a `412 consent_required` response with a `consent_id`; the action is paused until the human principal explicitly grants or denies it via a consent service. The token is only minted after a grant decision.
+
+**Why it exists** Full automation isn't appropriate for every action. The pattern of *autonomous by default, human-approved by exception* lets the system run fast for routine work but pauses for genuinely consequential decisions. Critically, the human isn't asked to approve every action — they approve a *class* of action via the mandate (P1), and only the high-risk exceptions surface for individual review. This is what makes attribution-by-construction compatible with autonomy.
+
+**Maps to** Step-up authentication patterns (OIDC `acr_values`, RBA — risk-based authentication) applied to agent actions rather than human sessions. This is the operational answer to "how do you keep humans in the loop without slowing every response?"
+
+---
+
+### 10. Tamper-Evident Audit Trail — the record must be unforgeable
+
+<SequenceDiagram spec={seqP10} />
+
+Every governed action — mandate issuance, token mint, PEP decision, revocation, consent, spend, completion — is written to a **hash-chained append-only log**. Each entry carries a SHA-256 hash of itself and the previous entry's hash. Any tampering with a past entry breaks the chain, detectable by walking it.
+
+**Why it exists** An audit log that can be silently edited is no audit log at all. The hash chain makes tampering structurally detectable — you can prove the log hasn't been altered since any specific point, without trusting the storage. This is the *evidence* that backs every other process: when something goes wrong, the reconstruction is provable, not just available.
+
+<Callout tone="warn" title="Open tension">
+  An append-only, signed audit chain that records human principal identity sits in direct tension with GDPR's right-to-erasure. The working answer is pseudonymisation at write-time plus crypto-shredding (destroy the key; the entries become unreadable while the chain integrity is preserved). It's not a settled design — it's a real open seam worth more discussion.
+</Callout>
+
+**Maps to** Merkle/hash-chain ledger patterns (the same family as blockchain ledgers, transparency logs, Sigstore's Rekor). The pattern is mature; the application to agent-action audit is recent.
+
+---
+
+### 11. Agent Completion Reporting — the chain has a close, not just an open
+
+<SequenceDiagram spec={seqP11} />
+
+When an agent finishes a task, it reports completion to a recorder service. The event is written to the audit chain, providing a closure event for every authority chain that was opened.
+
+**Why it exists** Without a closure event, every action chain in the audit log is implicitly "still in progress" — you can't tell what completed from what was abandoned. The completion event isn't just record-keeping: it's the signal that the budget can be reconciled, that follow-up consent prompts can be cleared, and that the trust-graph reconstruction has a terminal node.
+
+Same honest limitation as P8: completion is currently self-reported. The fix is the same — attestation from the resource server. Worth knowing the limit, and worth saying so out loud rather than pretending it isn't there.
+
+---
+
+## How they fit together
+
+The processes form a single chain, traversed in order on every agent action:
+
+1. A human signs a mandate → the chain has a root
+2. The agent holds a cryptographic identity → the root can be bound to a specific workload
+3. A token fuses mandate + identity → a single bearer artefact carries the full authority chain
+4. Every action passes through an external PEP → the agent cannot self-authorize
+5. Revocation is sub-second → authority granted is authority retractable
+6. Financial limits are enforced automatically → bounded by construction, not by dashboard
+7. High-risk actions pause for human approval → autonomy bounded by explicit human scope
+8. Every event is hash-chained → the record is unforgeable
+9. Every chain has a close → the log is complete
+
+Default-deny (P2) and multi-hop delegation (P5) are not in the line because they happen at different times — onboarding once, delegation when an agent passes work to another. But they bracket the chain: an agent has zero authority until P1 grants it, and an agent's authority cannot inflate downstream of P5.
+
+## How to know it actually works
+
+A system that does all eleven things *on paper* is not the same as one whose properties actually hold. The discipline that separates the two: **define "done" as a passing check.** Five measurements, machine-checkable, mapped one-to-one back to the load-bearing properties:
+
+1. **Enforcement** — in-scope actions allowed, out-of-scope denied, by reason. (P6.)
+2. **Revocation effect and latency** — after revoke, next use of that token is denied; p99 latency < 1s, including under an induced network partition. (P7.)
+3. **Bounded fail-closed** — during a central-plane partition, valid cached decisions still work, uncertain requests deny, nothing fails open. (P6 + P7 under stress.)
+4. **Unbypassability** — zero `resource_access` events without a matching `decision(allow)`. (P6's independent vantage points.)
+5. **Attenuation** — every delegation hop's scope is a subset of its parent's, and budget no greater. (P5.)
+
+A property you can't turn into a test was never a property — it was a hope wearing one's clothes. These five turn the catalog into something you can verify, repeatedly, against an adversarial probe. When they pass — green and repeatable — the system has earned its claims.
+
+## What to take from this
+
+The catalog is not novel in any single piece. Every process maps to a standard, a pattern, or a published primitive. The contribution — if there is one — is showing that *these eleven together form the minimal set* a trustworthy agent-governance system has to implement. Less than this, and you have gaps that defeat the whole; more than this is gold-plating.
+
+If you're building in this space, the test isn't whether you've adopted the most fashionable framework. It's whether you can answer eleven specific questions:
+
+1. Is there a signed human grant at the root?
+2. Are new agents zero-privileged by default?
+3. Is every agent's identity non-spoofable and bound to its workload?
+4. Are tokens bound to the agent's key, not just the agent's name?
+5. Can delegation only narrow authority, enforced cryptographically?
+6. Is enforcement co-located, unbypassable, and independently verifiable?
+7. Can authority be revoked across the fleet in under a second?
+8. Are financial limits enforced automatically?
+9. Do high-risk actions surface for human consent?
+10. Is the audit trail tamper-evident by construction?
+11. Does every authority chain have a closing event?
+
+If the answer to any of them is no — or worse, *"sort of, via observability"* — there's a gap. And the gap is where the next breach lives.
+
+*The reference implementation is being pressure-tested against the OWASP ASI 2026 threat model and audited against arc42, ISO 25010, and ISO 29119. The five-measurement validation, the gaps deliberately deferred, and the trade-offs each decision incurred are documented. If you're working on the same problem from a different angle, I'd value the comparison — the field is converging quickly, and the conversations across implementations are where the design gets tested.*

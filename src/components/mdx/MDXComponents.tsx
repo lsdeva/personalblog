@@ -3,6 +3,7 @@ import { Callout } from './Callout'
 import { Code } from './Code'
 import { Figure } from './Figure'
 import { ArchitectureDiagram } from '@/components/diagram/ArchitectureDiagram'
+import { SequenceDiagram } from '@/components/diagram/SequenceDiagram'
 import { ScrollScene, ScrollSceneSticky, ScrollSceneSteps } from '@/components/scroll/ScrollScene'
 import { Step } from '@/components/scroll/Step'
 import { ResearchLineage } from '@/components/research/ResearchLineage'
@@ -17,6 +18,7 @@ export const mdxComponents: MDXComponents = {
   Code,
   Figure,
   ArchitectureDiagram,
+  SequenceDiagram,
   ScrollScene,
   ScrollSceneSticky,
   ScrollSceneSteps,
