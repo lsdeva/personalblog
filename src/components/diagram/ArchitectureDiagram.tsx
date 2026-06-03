@@ -182,6 +182,12 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
         0,
       )
       void currentOffset
+
+      // Flow dots — fade in on active edges, hidden otherwise
+      const flow = root.querySelector<SVGPathElement>(`[data-flow="${id}"]`)
+      if (flow) {
+        tl.to(flow, { opacity: isActive ? 1 : 0 }, 0)
+      }
     })
 
     return () => {
@@ -341,6 +347,17 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
                   strokeWidth="1.5"
                   markerEnd={`url(#arrow-${accent ? 'accent' : 'base'}-${spec.id})`}
                   opacity={0.3}
+                />
+                <path
+                  data-flow={id}
+                  d={d}
+                  fill="none"
+                  stroke="var(--color-accent)"
+                  strokeWidth="2"
+                  strokeDasharray="4 12"
+                  strokeLinecap="round"
+                  opacity={0}
+                  style={{ animation: prefersReducedMotion ? 'none' : 'flow-dots 0.5s linear infinite' }}
                 />
                 {edge.label && (() => {
                   const approxW = edge.label.length * 7

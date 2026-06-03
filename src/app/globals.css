@@ -1,6 +1,10 @@
 @import 'tailwindcss';
 @import '../styles/tokens.css';
 
+@keyframes flow-dots {
+  to { stroke-dashoffset: -16; }
+}
+
 /* ──────────────────────────────────────────────────────────────
    Base
    ────────────────────────────────────────────────────────────── */
