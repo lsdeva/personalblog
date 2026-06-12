@@ -39,3 +39,9 @@ export function getArticleSlugs(): string[] {
 export function getArticleMeta(slug: string): ArticleListItem | null {
   return readAll().find((a) => a.slug === slug) ?? null
 }
+
+/** The home page's featured piece: explicit `featured: true` wins, else newest. */
+export function getFeaturedArticle(): ArticleListItem | null {
+  const all = readAll()
+  return all.find((a) => a.frontmatter.featured) ?? all[0] ?? null
+}

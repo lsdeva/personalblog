@@ -3,6 +3,7 @@ import { site } from '@/lib/site'
 export const metadata = {
   title: "Let's talk",
   description: `${site.author.role}. AWS 3×, former Ministry of Health solution review board, 12+ years architecting regulated systems.`,
+  alternates: { canonical: '/about/' },
 }
 
 const focusAreas = [

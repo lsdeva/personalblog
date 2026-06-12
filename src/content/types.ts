@@ -5,6 +5,7 @@ export interface ArticleFrontmatter {
   tags?: string[]
   diagramId?: string // references a spec in /src/diagrams/
   draft?: boolean
+  featured?: boolean // pinned as the home page's featured piece
 }
 
 export interface ArticleListItem {

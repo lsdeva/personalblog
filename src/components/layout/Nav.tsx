@@ -2,15 +2,40 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { site } from '@/lib/site'
 import { ThemeToggle } from './ThemeToggle'
 
-// CSS-only hover/focus transitions. Framer Motion is reserved for pages that
-// already ship JS (article pages), so the home bundle stays under its budget.
+// CSS-only hover/focus transitions — no animation library in the shell, so
+// the home bundle stays under its budget.
 export function Nav() {
   const pathname = usePathname()
   const [currentTitle, setCurrentTitle] = useState<string | null>(null)
+  const progressRef = useRef<HTMLDivElement>(null)
+
+  // Reading-progress bar: scaleX of page scroll, written directly to the
+  // element (no state) so scrolling never re-renders the nav.
+  useEffect(() => {
+    let raf = 0
+    const update = () => {
+      raf = 0
+      const doc = document.documentElement
+      const max = doc.scrollHeight - window.innerHeight
+      const p = max > 0 ? Math.min(1, window.scrollY / max) : 0
+      progressRef.current?.style.setProperty('transform', `scaleX(${p})`)
+    }
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update)
+    }
+    update()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [pathname])
 
   // Watch [data-article-section] elements in the current page and show the
   // active one's title in the nav's middle slot. "Active" = currently crossing
@@ -81,7 +106,9 @@ export function Nav() {
         <div className="ml-auto flex shrink-0 items-center gap-6 md:ml-0">
           <ul className="flex items-center gap-7">
             {site.nav.map((item) => {
-              const isActive = pathname.startsWith(item.href.replace(/\/$/, ''))
+              const base = item.href.replace(/\/$/, '')
+              // '' (the home href) would make startsWith match everything.
+              const isActive = base === '' ? pathname === '/' : pathname.startsWith(base)
               return (
                 <li key={item.href}>
                   <Link
@@ -106,6 +133,7 @@ export function Nav() {
           <ThemeToggle />
         </div>
       </nav>
+      <div ref={progressRef} aria-hidden="true" className="nav-progress" />
     </header>
   )
 }

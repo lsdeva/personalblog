@@ -242,6 +242,177 @@
   }
 }
 
+/* ──────────────────────────────────────────────────────────────
+   Hero — entrance reveals + living diagram.
+   All CSS so the home page ships zero animation JS. The global
+   prefers-reduced-motion override below collapses every animation
+   to its final frame.
+   ────────────────────────────────────────────────────────────── */
+
+.reveal-line {
+  display: block;
+  overflow: hidden;
+  /* Tight display line-height clips serif descenders under overflow:hidden;
+     pad the clip box and pull the next line back up. */
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+
+.reveal-line > span {
+  display: block;
+  transform: translateY(115%);
+  animation: line-up 900ms var(--ease-out-expo) forwards;
+}
+
+@keyframes line-up {
+  to { transform: translateY(0); }
+}
+
+.fade-up {
+  opacity: 0;
+  animation: fade-up 800ms var(--ease-out-quart) forwards;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-diagram svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.hero-diagram .hd-edge {
+  stroke: var(--color-muted);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+.hero-diagram .hd-arrowhead {
+  fill: var(--color-muted);
+}
+
+/* dotted current riding the structural edges — reuses the flow-dots keyframe */
+.hero-diagram .hd-flow {
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 14;
+  stroke-linecap: round;
+  animation: flow-dots 1.4s linear infinite;
+}
+
+.hero-diagram .hd-node rect {
+  fill: var(--color-surface);
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.hero-diagram .hd-node-accent rect {
+  stroke: var(--color-border-hi);
+}
+
+.hero-diagram .hd-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  fill: var(--color-ink);
+}
+
+.hero-diagram .hd-sub {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  fill: var(--color-muted);
+}
+
+.hero-diagram .hd-caption {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  fill: var(--color-muted);
+  text-transform: uppercase;
+}
+
+/* the gateway's heartbeat */
+.hero-diagram .hd-halo {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 1;
+  opacity: 0.15;
+  animation: hd-halo 3.2s ease-in-out infinite;
+}
+
+@keyframes hd-halo {
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.45; }
+}
+
+.hero-diagram .hd-status {
+  fill: var(--color-accent);
+  animation: hd-blink 2.4s steps(1) infinite;
+}
+
+@keyframes hd-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
+
+/* request packets — only shown where CSS motion paths are supported */
+.hero-diagram .hd-packet {
+  display: none;
+}
+
+@supports (offset-path: path('M0 0 L1 1')) {
+  .hero-diagram .hd-packet {
+    display: block;
+    fill: var(--color-accent);
+    offset-rotate: 0deg;
+    animation: hd-packet 6s linear infinite;
+  }
+}
+
+@keyframes hd-packet {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  44% {
+    opacity: 1;
+  }
+  50% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+/* Nav reading-progress bar — scaleX driven from Nav.tsx */
+.nav-progress {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+
 /* Scroll-scene balloon — card that shows the active step's prose next to
    the zoomed diagram. Fades + rises on step change via CSS animation
    triggered by React's key={activeStep} re-mount. */
