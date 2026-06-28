@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { getAllArticles, getFeaturedArticle } from '@/content/loader'
 import { HeroDiagram } from '@/components/home/HeroDiagram'
 import { ArticleIndex } from '@/components/home/ArticleIndex'
+import { AtcpFilmLazy } from '@/components/atcp/AtcpFilmLazy'
 import { ContactCTA } from '@/components/layout/ContactCTA'
 import { site } from '@/lib/site'
 
@@ -82,6 +83,46 @@ export default function HomePage() {
           <div className="fade-up hidden lg:block" style={{ animationDelay: '250ms' }}>
             <HeroDiagram />
           </div>
+        </div>
+      </section>
+
+      {/* ATCP × EU AI Act — a 62s animated explainer to land and watch.
+          Auto-plays in view, pauses off-screen, static poster under
+          prefers-reduced-motion. Carries its own dark "film" palette. */}
+      <section
+        aria-labelledby="atcp-film-heading"
+        className="border-t border-[var(--color-border)] py-20 md:py-28"
+      >
+        <div className="mx-auto max-w-[72rem] px-6">
+          <p className="text-kicker mb-6" style={{ color: 'var(--color-accent)' }}>
+            Watch · 62 seconds
+          </p>
+          <h2
+            id="atcp-film-heading"
+            className="text-display max-w-[20ch] text-[clamp(1.75rem,3.5vw,2.75rem)] leading-[1.1] text-[var(--color-ink)]"
+          >
+            Agent governance, mapped to the EU AI Act.
+          </h2>
+          <p className="mt-5 max-w-[58ch] text-[1.0625rem] leading-relaxed text-[var(--color-muted)]">
+            How the Agent Trust Control Plane (ATCP) makes every agent action traceable to
+            the human who authorized it — and how its eleven processes line up against what
+            the EU AI Act demands of high-risk AI.
+          </p>
+          <div className="mt-10">
+            <AtcpFilmLazy />
+          </div>
+          <Link
+            href="/writing/trustworthy-agent-governance/"
+            className="group mt-8 inline-flex items-baseline gap-2 font-[var(--font-mono)] text-[0.8125rem] tracking-[0.08em] text-[var(--color-accent)]"
+          >
+            Read the full breakdown
+            <span
+              aria-hidden="true"
+              className="transition-transform duration-200 group-hover:translate-x-1"
+            >
+              →
+            </span>
+          </Link>
         </div>
       </section>
 
