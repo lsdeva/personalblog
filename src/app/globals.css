@@ -87,6 +87,89 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── console theme: self-contained dark + cyan card (matches upload) ──
+   Scopes its own design tokens so the diagram looks identical in light
+   and dark site themes, and frames each diagram like the source. */
+.seq-console {
+  --color-bg: #0b0d11;
+  --color-surface: #13161e;
+  --color-surface-hi: #16191f;
+  --color-border: #232834;
+  --color-border-hi: #2a303c;
+  --color-fg: #e7ebf2;
+  --color-ink: #ffffff;
+  --color-muted: #8b94a6;
+  --color-accent: oklch(0.74 0.15 232);
+
+  background:
+    radial-gradient(900px 380px at 82% -20%, oklch(0.74 0.15 232 / 0.08), transparent 60%),
+    #08090c;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 20px 22px 18px;
+}
+
+.seq-console .overflow-x-auto {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-hi) transparent;
+}
+
+.seq-console ::selection {
+  background: oklch(0.74 0.15 232 / 0.35);
+}
+
+.seq-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.seq-head-rule {
+  width: 24px;
+  height: 1px;
+  background: var(--color-accent);
+  flex: none;
+}
+
+.seq-head-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--color-accent);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 45%, transparent);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+.seq-head-title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--color-fg);
+}
+
+/* Player controls inside the console card pick up the cyan accent
+   automatically via the scoped --color-* overrides above. */
+.seq-console .seq-btn {
+  background: #16191f;
+  border-color: var(--color-border);
+  color: var(--color-muted);
+}
+
+.seq-console .seq-btn:hover:not(:disabled) {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seq-diagram circle animate {
+    display: none;
+  }
+}
+
 /* ──────────────────────────────────────────────────────────────
    Base
    ────────────────────────────────────────────────────────────── */

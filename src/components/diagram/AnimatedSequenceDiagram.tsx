@@ -61,8 +61,21 @@ function usePrefersReducedMotion(): boolean {
   return reduced
 }
 
+/* Pull a short process code (e.g. "P4") out of the title for the header chip. */
+function processCode(title: string): string | null {
+  const m = title.match(/Process\s+(\d+)/i)
+  return m ? `P${m[1]}` : null
+}
+
 /* ── component ───────────────────────────────────────────────── */
-export function AnimatedSequenceDiagram({ spec }: { spec: SequenceDiagramSpec }) {
+export function AnimatedSequenceDiagram({
+  spec,
+  theme = 'console',
+}: {
+  spec: SequenceDiagramSpec
+  /** 'console' = self-contained dark+cyan card (matches the upload); 'inherit' = use the page theme. */
+  theme?: 'console' | 'inherit'
+}) {
   const N = spec.actors.length
   const colOf = new Map(spec.actors.map((a, i) => [a.id, i]))
 
@@ -178,8 +191,19 @@ export function AnimatedSequenceDiagram({ spec }: { spec: SequenceDiagramSpec })
   // The step currently "landing" (most recently revealed) gets emphasis.
   const liveStep = stepsShown - 1
 
+  const code = processCode(spec.title)
+  // Title without the "Process N — " prefix, for the card header.
+  const headTitle = spec.title.replace(/^Process\s+\d+\s*[—–-]\s*/i, '')
+
   return (
-    <div className="my-10 w-full" ref={rootRef}>
+    <div className={`seq-diagram my-10 w-full${theme === 'console' ? ' seq-console' : ''}`} ref={rootRef}>
+      {theme === 'console' && (
+        <div className="seq-head">
+          <span className="seq-head-rule" aria-hidden="true" />
+          {code && <span className="seq-head-code">{code}</span>}
+          <span className="seq-head-title">{headTitle}</span>
+        </div>
+      )}
       <div className="overflow-x-auto">
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -349,6 +373,31 @@ export function AnimatedSequenceDiagram({ spec }: { spec: SequenceDiagramSpec })
                   markerEnd={`url(#${arrowId})`}
                   style={{ transition: 'stroke 280ms ease, stroke-width 280ms ease' }}
                 />
+
+                {/* Traveling packet on the live message line (upload-style pulse). */}
+                {isLive && !reduced && (
+                  <circle r="3.2" cy={y} fill="var(--color-accent)" key={`pkt-${i}`}>
+                    <animate
+                      attributeName="cx"
+                      from={x1}
+                      to={x2}
+                      dur="0.62s"
+                      begin="0s"
+                      fill="freeze"
+                      calcMode="spline"
+                      keySplines="0.16 1 0.3 1"
+                      keyTimes="0;1"
+                    />
+                    <animate
+                      attributeName="opacity"
+                      values="0;1;1;0"
+                      keyTimes="0;0.15;0.8;1"
+                      dur="0.62s"
+                      begin="0s"
+                      fill="freeze"
+                    />
+                  </circle>
+                )}
 
                 <text
                   x={goRight ? x1 + 5 : x1 - 5}
