@@ -93,8 +93,12 @@ export function AnimatedSequenceDiagram({
   const [frame, setFrame] = useState(totalFrames) // 0..totalFrames
   const [playing, setPlaying] = useState(false)
   const [hasPlayed, setHasPlayed] = useState(false)
+  const [loop, setLoop] = useState(true)
   const rootRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<number | null>(null)
+
+  // hold the last frame a beat longer before the loop restarts
+  const END_HOLD_MS = 1400
 
   const atEnd = frame >= totalFrames
 
@@ -121,12 +125,19 @@ export function AnimatedSequenceDiagram({
     [stop, totalFrames],
   )
 
-  // Advance frames while playing.
+  // Advance frames while playing. At the end: loop back to 0 after a hold,
+  // or stop if looping is off.
   useEffect(() => {
     if (!playing) return
     if (frame >= totalFrames) {
-      setPlaying(false)
-      return
+      if (!loop) {
+        setPlaying(false)
+        return
+      }
+      timerRef.current = window.setTimeout(() => setFrame(0), END_HOLD_MS)
+      return () => {
+        if (timerRef.current) window.clearTimeout(timerRef.current)
+      }
     }
     timerRef.current = window.setTimeout(() => {
       setFrame((f) => f + 1)
@@ -134,7 +145,7 @@ export function AnimatedSequenceDiagram({
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current)
     }
-  }, [playing, frame, totalFrames])
+  }, [playing, frame, totalFrames, loop])
 
   // Reduced motion → show the full diagram, no autoplay, no controls.
   useEffect(() => {
@@ -557,6 +568,16 @@ export function AnimatedSequenceDiagram({
           <span className="seq-count" aria-live="polite">
             {Math.min(frame, totalFrames)} / {totalFrames}
           </span>
+          <button
+            type="button"
+            className={`seq-btn seq-btn-toggle${loop ? ' is-on' : ''}`}
+            onClick={() => setLoop((v) => !v)}
+            aria-pressed={loop}
+            aria-label={loop ? 'Looping on' : 'Looping off'}
+            title={loop ? 'Looping on' : 'Looping off'}
+          >
+            ↻
+          </button>
         </div>
       )}
 

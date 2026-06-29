@@ -5,6 +5,7 @@ import { Figure } from './Figure'
 import { ArchitectureDiagram } from '@/components/diagram/ArchitectureDiagram'
 import { SequenceDiagram } from '@/components/diagram/SequenceDiagram'
 import { AnimatedSequenceDiagram } from '@/components/diagram/AnimatedSequenceDiagram'
+import { SystemFlow } from '@/components/diagram/SystemFlow'
 import { ScrollScene, ScrollSceneSticky, ScrollSceneSteps } from '@/components/scroll/ScrollScene'
 import { Step } from '@/components/scroll/Step'
 import { ResearchLineage } from '@/components/research/ResearchLineage'
@@ -21,6 +22,7 @@ export const mdxComponents: MDXComponents = {
   ArchitectureDiagram,
   SequenceDiagram,
   AnimatedSequenceDiagram,
+  SystemFlow,
   ScrollScene,
   ScrollSceneSticky,
   ScrollSceneSteps,
