@@ -105,6 +105,7 @@
   --color-ink: #ffffff;
   --color-muted: #8b94a6;
   --color-accent: oklch(0.74 0.15 232);
+  --color-danger: #e0556b;
 
   background:
     radial-gradient(900px 380px at 82% -20%, oklch(0.74 0.15 232 / 0.08), transparent 60%),

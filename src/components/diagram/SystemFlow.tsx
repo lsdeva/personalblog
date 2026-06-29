@@ -6,15 +6,10 @@ import { systemFlow } from '@/diagrams/system-flow'
 const FM = 'var(--font-mono)'
 const FS = 'var(--font-sans)'
 
-/* layout */
 const NODE_W = 150
 const NODE_H = 54
-const COLS = 4 // nodes per row (wraps boustrophedon: → then ←)
-const GAP_X = 30
-const GAP_Y = 58
-const PAD = 24
-const STAGE_MS = 1300 // dwell per stage while playing
-const END_HOLD_MS = 1600
+const STEP_MS = 950 // dwell per trace hop while playing
+const END_HOLD_MS = 1500
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false)
@@ -28,41 +23,46 @@ function usePrefersReducedMotion(): boolean {
   return reduced
 }
 
-/** Boustrophedon grid position: row 0 left→right, row 1 right→left, … */
-function gridPos(i: number) {
-  const row = Math.floor(i / COLS)
-  const colInRow = i % COLS
-  const col = row % 2 === 0 ? colInRow : COLS - 1 - colInRow
-  return { row, col }
+/** Trim a segment so it starts/ends on the node-box border, not the centre. */
+function trimToBox(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+): { x1: number; y1: number; x2: number; y2: number } {
+  const hw = NODE_W / 2 + 4
+  const hh = NODE_H / 2 + 4
+  const clip = (cx: number, cy: number, tx: number, ty: number) => {
+    const dx = tx - cx
+    const dy = ty - cy
+    if (dx === 0 && dy === 0) return { x: cx, y: cy }
+    const sx = dx !== 0 ? hw / Math.abs(dx) : Infinity
+    const sy = dy !== 0 ? hh / Math.abs(dy) : Infinity
+    const s = Math.min(sx, sy)
+    return { x: cx + dx * s, y: cy + dy * s }
+  }
+  const p1 = clip(ax, ay, bx, by)
+  const p2 = clip(bx, by, ax, ay)
+  return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }
 }
 
 export function SystemFlow() {
-  const stages = systemFlow.stages
-  const n = stages.length
-  const reduced = usePrefersReducedMotion()
+  const { nodes, edges, auditSources, trace, vw, vh } = systemFlow
+  const byId = new Map(nodes.map((n) => [n.id, n]))
+  const cx = (id: string) => (byId.get(id)?.x ?? 0) + NODE_W / 2
+  const cy = (id: string) => (byId.get(id)?.y ?? 0) + NODE_H / 2
 
-  // active = index of the stage the packet is currently on (-1 = idle/start).
-  const [active, setActive] = useState(n - 1) // SSR/no-JS: fully lit
+  const reduced = usePrefersReducedMotion()
+  const W = vw
+  const H = vh
+
+  // active = index of the trace hop the packet is currently on (-1 = idle).
+  const [active, setActive] = useState(trace.length - 1) // SSR/no-JS: fully lit
   const [playing, setPlaying] = useState(false)
   const [loop, setLoop] = useState(true)
   const [hasPlayed, setHasPlayed] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<number | null>(null)
-
-  const rows = Math.ceil(n / COLS)
-  const W = PAD * 2 + COLS * NODE_W + (COLS - 1) * GAP_X
-  const H = PAD * 2 + rows * NODE_H + (rows - 1) * GAP_Y + 86 // +audit rail
-
-  const nodeX = (col: number) => PAD + col * (NODE_W + GAP_X)
-  const nodeY = (row: number) => PAD + row * (NODE_H + GAP_Y)
-  const cxOf = (i: number) => {
-    const { col } = gridPos(i)
-    return nodeX(col) + NODE_W / 2
-  }
-  const cyOf = (i: number) => {
-    const { row } = gridPos(i)
-    return nodeY(row) + NODE_H / 2
-  }
 
   const stop = () => {
     setPlaying(false)
@@ -70,14 +70,13 @@ export function SystemFlow() {
   }
   const play = () => {
     setHasPlayed(true)
-    setActive((a) => (a >= n - 1 ? -1 : a))
+    setActive((a) => (a >= trace.length - 1 ? -1 : a))
     setPlaying(true)
   }
 
-  // advance the packet
   useEffect(() => {
     if (!playing) return
-    if (active >= n - 1) {
+    if (active >= trace.length - 1) {
       if (!loop) {
         setPlaying(false)
         return
@@ -87,22 +86,20 @@ export function SystemFlow() {
         if (timerRef.current) window.clearTimeout(timerRef.current)
       }
     }
-    timerRef.current = window.setTimeout(() => setActive((a) => a + 1), active < 0 ? 500 : STAGE_MS)
+    timerRef.current = window.setTimeout(() => setActive((a) => a + 1), active < 0 ? 420 : STEP_MS)
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current)
     }
-  }, [playing, active, n, loop])
+  }, [playing, active, trace.length, loop])
 
-  // reduced motion → fully lit, no controls
   useEffect(() => {
     if (reduced) {
       stop()
-      setActive(n - 1)
+      setActive(trace.length - 1)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reduced, n])
+  }, [reduced, trace.length])
 
-  // autoplay (loops) when scrolled into view
   useEffect(() => {
     if (reduced || hasPlayed) return
     const el = rootRef.current
@@ -117,26 +114,34 @@ export function SystemFlow() {
           }
         }
       },
-      { threshold: 0.35 },
+      { threshold: 0.3 },
     )
     io.observe(el)
     return () => io.disconnect()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reduced, hasPlayed])
 
-  // audit events revealed so far
-  const auditRevealed = stages
-    .map((s, i) => ({ ...s, i }))
-    .filter((s) => s.audit && s.i <= active)
+  // Visited nodes + the live node (the trace hop the packet just reached).
+  const visited = new Set<string>()
+  for (let i = 0; i <= active && i < trace.length; i++) visited.add(trace[i])
+  const liveNode = active >= 0 && active < trace.length ? trace[active] : null
+  const prevNode = active > 0 && active < trace.length ? trace[active - 1] : null
 
-  const auditY = PAD + rows * NODE_H + (rows - 1) * GAP_Y + 34
-  const liveStage = active >= 0 && active < n ? stages[active] : null
+  // The live trace segment (prev -> live) gets the travelling packet.
+  let livePath: { x1: number; y1: number; x2: number; y2: number } | null = null
+  if (prevNode && liveNode && prevNode !== liveNode) {
+    livePath = trimToBox(cx(prevNode), cy(prevNode), cx(liveNode), cy(liveNode))
+  }
+
+  const auditNode = byId.get('audit')!
+  const auditCx = auditNode.x + NODE_W / 2
+  const auditTop = auditNode.y
 
   return (
     <div className="seq-diagram seq-console my-10 w-full" ref={rootRef}>
       <div className="seq-head">
         <span className="seq-head-rule" aria-hidden="true" />
-        <span className="seq-head-code">FIT</span>
+        <span className="seq-head-code">{systemFlow.code}</span>
         <span className="seq-head-title">{systemFlow.title}</span>
       </div>
 
@@ -149,163 +154,180 @@ export function SystemFlow() {
         >
           <title>{systemFlow.title}</title>
           <defs>
-            <marker id="sf-arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-              <path d="M0,0 L0,7 L7,3.5 z" fill="var(--color-border-hi)" />
+            <marker id="sf-arr" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto">
+              <path d="M0,0 L0,8 L7,4 z" fill="var(--color-border-hi)" />
             </marker>
-            <marker id="sf-arr-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-              <path d="M0,0 L0,7 L7,3.5 z" fill="var(--color-accent)" />
+            <marker id="sf-arr-a" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto">
+              <path d="M0,0 L0,8 L7,4 z" fill="var(--color-accent)" />
+            </marker>
+            <marker id="sf-arr-d" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto">
+              <path d="M0,0 L0,8 L7,4 z" fill="var(--color-danger, #e0556b)" />
             </marker>
           </defs>
 
-          {/* ── edges between consecutive stages ─────────────── */}
-          {stages.slice(1).map((stage, idx) => {
-            const i = idx + 1
-            const a = gridPos(i - 1)
-            const b = gridPos(i)
-            const x1 = cxOf(i - 1)
-            const y1 = cyOf(i - 1)
-            const x2 = cxOf(i)
-            const y2 = cyOf(i)
-            const isLive = i === active
-            const reached = i <= active
-            const stroke = isLive
-              ? 'var(--color-accent)'
-              : reached
-                ? 'color-mix(in oklab, var(--color-accent) 45%, transparent)'
-                : 'var(--color-border-hi)'
-            const arrow = reached ? 'url(#sf-arr-a)' : 'url(#sf-arr)'
-
-            // same row → straight; row change → elbow down then across
-            let d: string
-            let labelX = (x1 + x2) / 2
-            let labelY = (y1 + y2) / 2 - 6
-            if (a.row === b.row) {
-              const dir = x2 >= x1 ? 1 : -1
-              const sx = x1 + dir * (NODE_W / 2)
-              const ex = x2 - dir * (NODE_W / 2)
-              d = `M ${sx} ${y1} H ${ex}`
-              labelX = (sx + ex) / 2
-              labelY = y1 - 7
-            } else {
-              // drop from bottom of node a, across, up into node b
-              const sy = y1 + NODE_H / 2
-              const ey = y2 - NODE_H / 2
-              const my = (sy + ey) / 2
-              d = `M ${x1} ${sy} V ${my} H ${x2} V ${ey}`
-              labelX = (x1 + x2) / 2
-              labelY = my - 5
-            }
-
+          {/* ── audit fan-in (dotted links into the chain) ───────── */}
+          {auditSources.map((id) => {
+            const seg = trimToBox(cx(id), cy(id), auditCx, auditTop - 6)
+            const on = visited.has(id)
             return (
-              <g key={`e-${i}`}>
-                <path
-                  d={d}
-                  fill="none"
+              <line
+                key={`af-${id}`}
+                x1={seg.x1}
+                y1={seg.y1}
+                x2={auditCx}
+                y2={auditTop - 4}
+                stroke={on ? 'var(--color-accent)' : 'var(--color-border)'}
+                strokeWidth="1"
+                strokeDasharray="2 4"
+                opacity={on ? 0.7 : 0.4}
+                style={{ transition: 'stroke 300ms ease, opacity 300ms ease' }}
+              />
+            )
+          })}
+
+          {/* ── structural edges ─────────────────────────────────── */}
+          {edges.map((e, i) => {
+            const seg = trimToBox(cx(e.from), cy(e.from), cx(e.to), cy(e.to))
+            const danger = e.tone === 'danger'
+            // an edge is "on" once both endpoints have been visited in order
+            const on = visited.has(e.from) && visited.has(e.to)
+            const stroke = danger
+              ? 'var(--color-danger, #e0556b)'
+              : on
+                ? 'var(--color-accent)'
+                : 'var(--color-border-hi)'
+            const arrow = danger ? 'url(#sf-arr-d)' : on ? 'url(#sf-arr-a)' : 'url(#sf-arr)'
+            const mx = (seg.x1 + seg.x2) / 2
+            const my = (seg.y1 + seg.y2) / 2
+            const lw = e.label.length * 5 + 8
+            return (
+              <g key={`e-${i}`} opacity={e.faint ? 0.5 : 1}>
+                <line
+                  x1={seg.x1}
+                  y1={seg.y1}
+                  x2={seg.x2}
+                  y2={seg.y2}
                   stroke={stroke}
-                  strokeWidth={isLive ? 1.8 : 1.2}
+                  strokeWidth={on || danger ? 1.6 : 1.2}
+                  strokeDasharray={e.faint ? '5 5' : undefined}
                   markerEnd={arrow}
-                  style={{ transition: 'stroke 300ms ease, stroke-width 300ms ease' }}
+                  style={{ transition: 'stroke 320ms ease, stroke-width 320ms ease' }}
                 />
-                {/* traveling packet on the live edge */}
-                {isLive && !reduced && (
-                  <circle r="3.4" fill="var(--color-accent)">
-                    <animateMotion dur="0.7s" begin="0s" fill="freeze" path={d} keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.16 1 0.3 1" />
-                    <animate attributeName="opacity" values="0;1;1;0.2" keyTimes="0;0.15;0.85;1" dur="0.7s" fill="freeze" />
-                  </circle>
-                )}
+                <rect x={mx - lw / 2} y={my - 8} width={lw} height={14} rx="3" fill="#08090c" opacity="0.85" />
                 <text
-                  x={labelX}
-                  y={labelY}
+                  x={mx}
+                  y={my + 2}
                   textAnchor="middle"
                   fontFamily={FM}
-                  fontSize="8"
-                  fill={reached ? 'var(--color-fg)' : 'var(--color-muted)'}
-                  style={{ transition: 'fill 300ms ease' }}
+                  fontSize="8.5"
+                  fill={danger ? 'var(--color-danger, #e0556b)' : on ? 'var(--color-fg)' : 'var(--color-muted)'}
+                  style={{ transition: 'fill 320ms ease' }}
                 >
-                  {stage.edge}
+                  {e.label}
                 </text>
               </g>
             )
           })}
 
-          {/* ── stage nodes ──────────────────────────────────── */}
-          {stages.map((stage, i) => {
-            const { row, col } = gridPos(i)
-            const x = nodeX(col)
-            const y = nodeY(row)
-            const reached = i <= active
-            const isLive = i === active
-            const primary = stage.variant === 'primary'
-            const gate = stage.variant === 'gate'
-            return (
-              <g
-                key={stage.tag}
-                style={{ opacity: reached ? 1 : 0.5, transition: 'opacity 300ms ease' }}
-              >
-                <rect
-                  x={x}
-                  y={y}
-                  width={NODE_W}
-                  height={NODE_H}
-                  rx="9"
-                  fill={isLive ? 'color-mix(in oklab, var(--color-accent) 14%, var(--color-surface))' : primary ? 'var(--color-surface-hi)' : 'var(--color-surface)'}
-                  stroke={isLive || reached ? 'var(--color-accent)' : 'var(--color-border-hi)'}
-                  strokeWidth={isLive ? 2 : 1.25}
-                  strokeDasharray={gate ? '5 4' : undefined}
-                  style={{ transition: 'stroke 300ms ease, fill 300ms ease, stroke-width 300ms ease' }}
+          {/* ── travelling packet on the live trace segment ──────── */}
+          {livePath && !reduced && (
+            <g key={`pkt-${active}`}>
+              <line
+                x1={livePath.x1}
+                y1={livePath.y1}
+                x2={livePath.x2}
+                y2={livePath.y2}
+                stroke="var(--color-accent)"
+                strokeWidth="2.2"
+                opacity="0.9"
+              />
+              <circle r="4.5" fill="var(--color-accent)">
+                <animate
+                  attributeName="cx"
+                  from={livePath.x1}
+                  to={livePath.x2}
+                  dur="0.7s"
+                  fill="freeze"
+                  calcMode="spline"
+                  keySplines="0.16 1 0.3 1"
+                  keyTimes="0;1"
                 />
-                {/* live halo */}
-                {isLive && !reduced && (
-                  <rect x={x - 3} y={y - 3} width={NODE_W + 6} height={NODE_H + 6} rx="11" fill="none" stroke="var(--color-accent)" strokeWidth="1" opacity="0.35">
-                    <animate attributeName="opacity" values="0.5;0.12;0.5" dur="1.6s" repeatCount="indefinite" />
+                <animate
+                  attributeName="cy"
+                  from={livePath.y1}
+                  to={livePath.y2}
+                  dur="0.7s"
+                  fill="freeze"
+                  calcMode="spline"
+                  keySplines="0.16 1 0.3 1"
+                  keyTimes="0;1"
+                />
+                <animate attributeName="opacity" values="0;1;1;0.3" keyTimes="0;0.15;0.8;1" dur="0.7s" fill="freeze" />
+              </circle>
+            </g>
+          )}
+
+          {/* ── nodes ────────────────────────────────────────────── */}
+          {nodes.map((n) => {
+            const on = visited.has(n.id)
+            const live = n.id === liveNode
+            return (
+              <g key={n.id} style={{ opacity: on ? 1 : 0.55, transition: 'opacity 300ms ease' }}>
+                {live && !reduced && (
+                  <rect
+                    x={n.x - 4}
+                    y={n.y - 4}
+                    width={NODE_W + 8}
+                    height={NODE_H + 8}
+                    rx="12"
+                    fill="none"
+                    stroke="var(--color-accent)"
+                    strokeWidth="1"
+                    opacity="0.4"
+                  >
+                    <animate attributeName="opacity" values="0.55;0.12;0.55" dur="1.5s" repeatCount="indefinite" />
                   </rect>
                 )}
-                <text x={x + 11} y={y + 21} fontFamily={FM} fontSize="10" fontWeight="600" letterSpacing="0.06em" fill="var(--color-accent)">
-                  {stage.tag}
-                </text>
-                <text x={x + 11} y={y + 39} fontFamily={FS} fontSize="12" fontWeight="500" fill={reached ? 'var(--color-fg)' : 'var(--color-muted)'} style={{ transition: 'fill 300ms ease' }}>
-                  {stage.label}
-                </text>
-              </g>
-            )
-          })}
-
-          {/* ── audit rail ───────────────────────────────────── */}
-          <line
-            x1={PAD}
-            y1={auditY}
-            x2={W - PAD}
-            y2={auditY}
-            stroke="var(--color-border)"
-            strokeWidth="1"
-            strokeDasharray="3 4"
-          />
-          <text x={PAD} y={auditY - 8} fontFamily={FM} fontSize="9" letterSpacing="0.08em" fill="var(--color-muted)">
-            AUDIT CHAIN (P10) — hash-linked, append-only
-          </text>
-          {auditRevealed.map((s, k) => {
-            const total = stages.filter((st) => st.audit).length
-            const span = W - PAD * 2
-            const ax = PAD + ((k + 0.5) / total) * span
-            const fromX = cxOf(s.i)
-            const fromY = cyOf(s.i) + NODE_H / 2
-            const isLatest = s.i === active
-            return (
-              <g key={`a-${s.i}`} style={{ animation: reduced ? undefined : 'seq-step-in 360ms var(--ease-out-expo) both' }}>
-                <line
-                  x1={fromX}
-                  y1={fromY}
-                  x2={ax}
-                  y2={auditY}
-                  stroke={isLatest ? 'var(--color-accent)' : 'color-mix(in oklab, var(--color-accent) 35%, transparent)'}
-                  strokeWidth={isLatest ? 1.4 : 1}
-                  strokeDasharray="2 3"
-                  markerEnd="url(#sf-arr-a)"
+                <rect
+                  x={n.x}
+                  y={n.y}
+                  width={NODE_W}
+                  height={NODE_H}
+                  rx="10"
+                  fill={live ? 'color-mix(in oklab, var(--color-accent) 16%, var(--color-surface))' : 'var(--color-surface)'}
+                  stroke={on ? 'var(--color-accent)' : 'var(--color-border-hi)'}
+                  strokeWidth={live ? 2 : 1.25}
+                  style={{ transition: 'stroke 300ms ease, fill 300ms ease, stroke-width 300ms ease' }}
                 />
-                <circle cx={ax} cy={auditY} r={isLatest ? 4 : 3} fill="var(--color-accent)" opacity={isLatest ? 1 : 0.7} />
-                <text x={ax} y={auditY + 16} textAnchor="middle" fontFamily={FM} fontSize="7.5" fill="var(--color-muted)">
-                  {s.audit}
+                {n.tag && (
+                  <text
+                    x={n.x + NODE_W - 10}
+                    y={n.y + 16}
+                    textAnchor="end"
+                    fontFamily={FM}
+                    fontSize="9"
+                    fontWeight="600"
+                    letterSpacing="0.05em"
+                    fill="var(--color-accent)"
+                  >
+                    {n.tag}
+                  </text>
+                )}
+                <text
+                  x={n.x + 12}
+                  y={n.y + 23}
+                  fontFamily={FS}
+                  fontSize="13"
+                  fontWeight="500"
+                  fill={on ? 'var(--color-ink)' : 'var(--color-fg)'}
+                >
+                  {n.label}
                 </text>
+                {n.sub && (
+                  <text x={n.x + 12} y={n.y + 40} fontFamily={FM} fontSize="8.5" letterSpacing="0.02em" fill="var(--color-muted)">
+                    {n.sub}
+                  </text>
+                )}
               </g>
             )
           })}
@@ -314,14 +336,7 @@ export function SystemFlow() {
 
       {/* live caption */}
       <p className="sf-caption" aria-live="polite">
-        {liveStage ? (
-          <>
-            <span className="sf-caption-tag">{liveStage.tag}</span>
-            {liveStage.caption}
-          </>
-        ) : (
-          systemFlow.subtitle
-        )}
+        {systemFlow.caption}
       </p>
 
       {/* controls */}
@@ -339,7 +354,7 @@ export function SystemFlow() {
               setActive((a) => Math.max(-1, a - 1))
             }}
             disabled={active < 0}
-            aria-label="Previous stage"
+            aria-label="Previous step"
           >
             ‹
           </button>
@@ -349,10 +364,10 @@ export function SystemFlow() {
             onClick={() => {
               stop()
               setHasPlayed(true)
-              setActive((a) => Math.min(n - 1, a + 1))
+              setActive((a) => Math.min(trace.length - 1, a + 1))
             }}
-            disabled={active >= n - 1}
-            aria-label="Next stage"
+            disabled={active >= trace.length - 1}
+            aria-label="Next step"
           >
             ›
           </button>
@@ -360,7 +375,7 @@ export function SystemFlow() {
             type="range"
             className="seq-scrub"
             min={-1}
-            max={n - 1}
+            max={trace.length - 1}
             value={active}
             step={1}
             onChange={(e) => {
@@ -368,10 +383,10 @@ export function SystemFlow() {
               setHasPlayed(true)
               setActive(Number(e.target.value))
             }}
-            aria-label="Scrub stages"
+            aria-label="Scrub trace"
           />
           <span className="seq-count" aria-live="polite">
-            {Math.max(0, active + 1)} / {n}
+            {Math.max(0, active + 1)} / {trace.length}
           </span>
           <button
             type="button"

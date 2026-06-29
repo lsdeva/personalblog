@@ -1,115 +1,80 @@
-export interface FlowStage {
-  /** Process tag, e.g. "P1". */
-  tag: string
-  /** Short node label shown in the pipeline. */
+/**
+ * "How the 11 processes fit together" — one agent action traced through the
+ * whole control plane. Node coordinates, edges, audit fan-in and the traced
+ * packet path are copied 1:1 from the reference ATCP diagram bundle so the
+ * animated layout matches it exactly.
+ */
+
+export interface FlowNode {
+  id: string
   label: string
-  /** One-line caption shown while the packet is on this stage. */
-  caption: string
-  /** Label for the message edge leading INTO this stage. */
-  edge: string
-  /** Audit event this stage drops into the chain (omitted = no audit row). */
-  audit?: string
-  /** Visual emphasis: 'primary' = filled accent node (human/agent/decision points). */
-  variant?: 'primary' | 'default' | 'gate'
+  sub: string
+  /** Process tag, e.g. "P1" ("" for the bare Resource node). */
+  tag: string
+  x: number
+  y: number
 }
 
-/**
- * One agent action, traced end-to-end through all eleven processes.
- * The packet walks left→right; each stage lights as it arrives; governed
- * events fall into the audit rail. This is the "whole system" view.
- */
+export interface FlowEdge {
+  from: string
+  to: string
+  label: string
+  /** faint = de-emphasised structural edge; danger = the revoke kill-switch. */
+  faint?: boolean
+  tone?: 'danger'
+}
+
 export const systemFlow: {
   id: string
+  code: string
   title: string
-  subtitle: string
-  stages: FlowStage[]
+  tagline: string
+  caption: string
+  /** SVG canvas the hand-placed coordinates were authored against. */
+  vw: number
+  vh: number
+  nodes: FlowNode[]
+  edges: FlowEdge[]
+  /** Nodes that dotted-link into the audit chain. */
+  auditSources: string[]
+  /** The traced packet path (node ids) — "one action through the system". */
+  trace: string[]
 } = {
   id: 'system-flow',
-  title: 'The whole system, one traced action',
-  subtitle:
-    'A single agent action walks the full chain — authority established, fused, enforced, bounded, recorded. Every governed event lands in the audit chain.',
-  stages: [
-    {
-      tag: 'P1',
-      label: 'Human mandate',
-      variant: 'primary',
-      edge: 'sign scoped grant',
-      caption: 'A human signs a scoped, budget-bounded, time-limited mandate — the chain gets its root.',
-      audit: 'mandate issued',
-    },
-    {
-      tag: 'P2',
-      label: 'Default-deny',
-      edge: 'register agent',
-      caption: 'The agent registers with an empty scope set — zero privilege until something is granted.',
-    },
-    {
-      tag: 'P3',
-      label: 'SPIFFE SVID',
-      edge: 'attest workload',
-      caption: 'SPIRE binds a non-spoofable, auto-rotated identity to where the agent actually runs.',
-    },
-    {
-      tag: 'P4',
-      label: 'Token mint',
-      variant: 'primary',
-      edge: 'fuse mandate + SVID',
-      caption: 'The Token Exchange fuses the mandate with the SVID into a key-bound IBCT (PoP).',
-      audit: 'token minted',
-    },
-    {
-      tag: 'P9',
-      label: 'Consent gate',
-      variant: 'gate',
-      edge: 'risk check',
-      caption: 'High-risk? Pause for explicit human consent before the token is usable. Routine work passes.',
-      audit: 'consent (if high-risk)',
-    },
-    {
-      tag: 'P5',
-      label: 'Delegation',
-      variant: 'gate',
-      edge: 'if sub-agent',
-      caption: 'If work is handed off, the chained token can only narrow — scope and budget never grow.',
-      audit: 'chain extended',
-    },
-    {
-      tag: 'P6',
-      label: 'PEP enforce',
-      variant: 'primary',
-      edge: 'action + IBCT + DPoP',
-      caption: 'Every call passes through a co-located PEP: verify, check revocation, prove possession, ask OPA.',
-      audit: 'decision(allow) + resource_access',
-    },
-    {
-      tag: 'P8',
-      label: 'Budget',
-      edge: 'report spend',
-      caption: 'Each allowed call reports spend in integer cents; the ceiling is enforced automatically.',
-      audit: 'spend recorded',
-    },
-    {
-      tag: 'P7',
-      label: 'Revocation',
-      variant: 'gate',
-      edge: 'ceiling / kill',
-      caption: 'Ceiling hit or manual kill → a signed CAEP event reaches every PEP in under a second.',
-      audit: 'revoke pushed',
-    },
-    {
-      tag: 'P11',
-      label: 'Completion',
-      edge: 'report done',
-      caption: 'The agent reports completion — every opened authority chain gets a closing event.',
-      audit: 'completion',
-    },
-    {
-      tag: 'P10',
-      label: 'Audit chain',
-      variant: 'primary',
-      edge: 'append + hash',
-      caption: 'Every event above is hash-chained, append-only — tampering with any entry breaks the chain.',
-      audit: 'chain verified',
-    },
+  code: 'FIT',
+  title: 'How the 11 Processes Fit Together',
+  tagline: 'One agent action, traced through the whole control plane.',
+  caption:
+    'A human signs (P1), the agent is bound to a non-spoofable identity (P3), the Token Exchange fuses them (P4), every call passes a PEP (P6), revocation is sub-second (P7), budget auto-revokes (P8), high-risk pauses for consent (P9) — and every event lands in a tamper-evident chain (P10).',
+  vw: 920,
+  vh: 680,
+  nodes: [
+    { id: 'human', label: 'Human', sub: 'principal', tag: 'P1', x: 70, y: 60 },
+    { id: 'spire', label: 'SPIRE', sub: 'issues SVIDs', tag: 'P3', x: 70, y: 250 },
+    { id: 'agent', label: 'AI Agent', sub: 'SVID-attested', tag: 'P4', x: 300, y: 150 },
+    { id: 'opa', label: 'OPA / Policy', sub: 'default-deny seed', tag: 'P2', x: 430, y: 310 },
+    { id: 'sub', label: 'Sub-Agent', sub: 'if delegated', tag: 'P5', x: 300, y: 430 },
+    { id: 'audit', label: 'Audit Chain', sub: 'hash-linked · append-only', tag: 'P10', x: 80, y: 560 },
+    { id: 'tx', label: 'Token Exchange', sub: 'mints IBCTs', tag: 'P4', x: 545, y: 65 },
+    { id: 'consent', label: 'Consent Svc', sub: 'step-up gate', tag: 'P9', x: 800, y: 65 },
+    { id: 'budget', label: 'Budget Svc', sub: 'tracks per-jti', tag: 'P8', x: 800, y: 250 },
+    { id: 'res', label: 'Resource', sub: 'tool/API/peer', tag: '', x: 800, y: 450 },
+    { id: 'pep', label: 'PEP (sidecar)', sub: '+ OPA policy', tag: 'P6', x: 545, y: 460 },
+    { id: 'caep', label: 'CAEP Tx', sub: 'SSF · revoke push', tag: 'P7', x: 560, y: 600 },
   ],
+  edges: [
+    { from: 'human', to: 'agent', label: 'P1 mandate' },
+    { from: 'spire', to: 'agent', label: 'P3 SVID · zero-privilege' },
+    { from: 'agent', to: 'tx', label: 'P4 exchange' },
+    { from: 'tx', to: 'consent', label: 'P9 if high-risk' },
+    { from: 'opa', to: 'tx', label: 'P2 seed', faint: true },
+    { from: 'tx', to: 'pep', label: 'P6 action + IBCT' },
+    { from: 'agent', to: 'sub', label: 'P5 delegate · chained IBCT' },
+    { from: 'pep', to: 'res', label: 'forward' },
+    { from: 'pep', to: 'budget', label: 'P8 spend' },
+    { from: 'budget', to: 'caep', label: 'ceiling hit' },
+    { from: 'caep', to: 'pep', label: 'P7 revoke', tone: 'danger' },
+  ],
+  auditSources: ['tx', 'pep', 'budget', 'caep', 'consent'],
+  trace: ['human', 'agent', 'tx', 'consent', 'tx', 'pep', 'res', 'budget', 'caep', 'pep'],
 }
