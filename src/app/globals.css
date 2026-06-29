@@ -6,6 +6,88 @@
 }
 
 /* ──────────────────────────────────────────────────────────────
+   Animated sequence diagram — per-step entrance + player controls
+   ────────────────────────────────────────────────────────────── */
+
+@keyframes seq-step-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.seq-player {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.seq-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--color-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  min-width: 30px;
+  height: 28px;
+  padding: 0 9px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.seq-btn:hover:not(:disabled) {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.seq-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.seq-scrub {
+  flex: 1;
+  max-width: 320px;
+  height: 3px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--color-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.seq-scrub::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: none;
+  cursor: pointer;
+}
+
+.seq-scrub::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: none;
+  cursor: pointer;
+}
+
+.seq-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+  min-width: 44px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ──────────────────────────────────────────────────────────────
    Base
    ────────────────────────────────────────────────────────────── */
 

@@ -45,7 +45,7 @@ That single sentence dictates the eleven processes. Each one is a property that 
 
 ### 1. Human Authority Delegation — the chain has to start somewhere
 
-<SequenceDiagram spec={seqP1} />
+<AnimatedSequenceDiagram spec={seqP1} />
 
 A human authenticates (OIDC), then signs a **mandate** — a scoped capability grant with an explicit scope, a budget ceiling in integer cents, and a TTL. The mandate is a Verifiable Credential, Ed25519-signed, offline-verifiable.
 
@@ -57,7 +57,7 @@ A human authenticates (OIDC), then signs a **mandate** — a scoped capability g
 
 ### 2. Agent Registration → Default-Deny — privilege is granted, never inherited
 
-<SequenceDiagram spec={seqP2} />
+<AnimatedSequenceDiagram spec={seqP2} />
 
 A new agent registers, gets a SPIFFE workload identity from SPIRE, and is seeded with an *empty* scope set in the policy engine. The agent can do *nothing* until explicitly granted authority. No legacy privilege carries forward.
 
@@ -69,7 +69,7 @@ A new agent registers, gets a SPIFFE workload identity from SPIRE, and is seeded
 
 ### 3. Agent Identity Issuance (SPIFFE/SPIRE) — non-spoofable identity at the workload layer
 
-<SequenceDiagram spec={seqP3} />
+<AnimatedSequenceDiagram spec={seqP3} />
 
 SPIRE issues each agent an X.509-SVID — a non-spoofable workload certificate carrying a SPIFFE ID like `spiffe://atcp.test/agent/{name}`. The certificate is auto-rotated. The identity is *bound to where the agent runs*, not to a secret it could share.
 
@@ -81,7 +81,7 @@ SPIRE issues each agent an X.509-SVID — a non-spoofable workload certificate c
 
 ### 4. Authority Token Minting (Single-Hop) — the human's grant meets the agent's identity
 
-<SequenceDiagram spec={seqP4} />
+<AnimatedSequenceDiagram spec={seqP4} />
 
 An agent presents its SVID plus a `mandate_ref` to a Token-Exchange service. The exchange verifies the mandate signature offline, checks that the requested scope and budget are within the mandate's, and mints an **IBCT** (Invocation-Bound Capability Token). Critically, the token is *key-bound* — its `cnf.jwk` claim embeds the agent's SVID public key, so only the agent holding the matching private key can use it.
 
@@ -93,7 +93,7 @@ An agent presents its SVID plus a `mandate_ref` to a Token-Exchange service. The
 
 ### 5. Authority Delegation to a Sub-Agent (A2A, Multi-Hop) — the chain extends without inflating
 
-<SequenceDiagram spec={seqP5} />
+<AnimatedSequenceDiagram spec={seqP5} />
 
 An agent passes work to another agent by appending a **delegation block** to the token. Each block can *only narrow* — the sub-agent's scope must be a subset of its parent's scope, and its budget no greater than its parent's budget. A max depth limit caps chain length. The format is a Biscuit token; the chain lives inside the token itself.
 
@@ -105,7 +105,7 @@ An agent passes work to another agent by appending a **delegation block** to the
 
 ### 6. Protected Resource Access (PEP Enforcement) — the action must pass through enforcement
 
-<SequenceDiagram spec={seqP6} />
+<AnimatedSequenceDiagram spec={seqP6} />
 
 Every call to a resource (tool, API, peer agent) is intercepted by a co-located Policy Enforcement Point (PEP) that verifies the token signature, checks a local revocation cache, verifies a DPoP proof (the agent signs a per-request proof with its SVID private key, proving it holds the bound key), evaluates the policy engine for the requested action, and either forwards or denies — emitting a structured decision event either way. The resource server, separately, emits a `resource_access` event on every request it handles.
 
@@ -117,7 +117,7 @@ Every call to a resource (tool, API, peer agent) is intercepted by a co-located 
 
 ### 7. Revocation (< 1 Second Kill-Switch) — authority must be retractable in real time
 
-<SequenceDiagram spec={seqP7} />
+<AnimatedSequenceDiagram spec={seqP7} />
 
 Any party can revoke a token by its JTI. The revocation is pushed as a signed Security Event Token via **CAEP** (Continuous Access Evaluation Protocol, part of the OpenID Shared Signals Framework) to every PEP. Each PEP adds the JTI to a local in-memory revocation cache; the next call with that token is denied in under a second — including under a central-plane partition, because the cache is local and no network call is needed.
 
@@ -129,7 +129,7 @@ Any party can revoke a token by its JTI. The revocation is pushed as a signed Se
 
 ### 8. Budget Accounting and Ceiling Enforcement — financial limits are enforced automatically
 
-<SequenceDiagram spec={seqP8} />
+<AnimatedSequenceDiagram spec={seqP8} />
 
 Every allowed resource call reports a spend (integer cents) to a budget service. The service tracks per-token running totals. When the ceiling is reached, it automatically triggers revocation via the same CAEP path as P7.
 
@@ -143,7 +143,7 @@ Every allowed resource call reports a spend (integer cents) to a budget service.
 
 ### 9. Consent Step-Up for High-Risk Actions — human-in-the-loop where it matters
 
-<SequenceDiagram spec={seqP9} />
+<AnimatedSequenceDiagram spec={seqP9} />
 
 Before minting a token for a high-risk action (high budget, sensitive scope, novel pattern), the token-exchange evaluates the action against a consent policy. High-risk actions return a `412 consent_required` response with a `consent_id`; the action is paused until the human principal explicitly grants or denies it via a consent service. The token is only minted after a grant decision.
 
@@ -155,7 +155,7 @@ Before minting a token for a high-risk action (high budget, sensitive scope, nov
 
 ### 10. Tamper-Evident Audit Trail — the record must be unforgeable
 
-<SequenceDiagram spec={seqP10} />
+<AnimatedSequenceDiagram spec={seqP10} />
 
 Every governed action — mandate issuance, token mint, PEP decision, revocation, consent, spend, completion — is written to a **hash-chained append-only log**. Each entry carries a SHA-256 hash of itself and the previous entry's hash. Any tampering with a past entry breaks the chain, detectable by walking it.
 
@@ -171,7 +171,7 @@ Every governed action — mandate issuance, token mint, PEP decision, revocation
 
 ### 11. Agent Completion Reporting — the chain has a close, not just an open
 
-<SequenceDiagram spec={seqP11} />
+<AnimatedSequenceDiagram spec={seqP11} />
 
 When an agent finishes a task, it reports completion to a recorder service. The event is written to the audit chain, providing a closure event for every authority chain that was opened.
 
