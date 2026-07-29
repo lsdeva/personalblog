@@ -11,6 +11,10 @@ export const twelveLayerPlatform: DiagramSpec = {
   title: 'The twelve-layer agent platform and its spanning control plane',
   a11yDescription:
     'A layered diagram of an enterprise AI agent platform. From the top: an interaction layer, an agent runtime and orchestration layer that differ per business, then shared services — model access, context, knowledge, memory, tools and actions — then a trust band of identity, policy, and security, and an observability layer at the base. A control plane spans every layer, holding inventory, registration, approval, deployment, enforcement, suspension, revocation, and reporting.',
+  // Laid out as two six-deep columns (L1–L6 left, L7–L12 right) with the
+  // control plane spanning between them. This keeps the top-to-bottom reading
+  // order while halving the diagram's height, so each box renders at a
+  // legible size instead of being squashed to fit a single tall column.
   nodes: [
     { id: 'interaction', label: 'Interaction', sublabel: 'chat · voice · events · APIs', x: 0, y: 0, variant: 'secondary', tag: 'L1' },
     { id: 'runtime', label: 'Agent runtime', sublabel: 'planning · reasoning loop', x: 0, y: 1, variant: 'primary', tag: 'L2' },
@@ -18,13 +22,13 @@ export const twelveLayerPlatform: DiagramSpec = {
     { id: 'model', label: 'Model access', sublabel: 'gateway · router · cache', x: 0, y: 3, variant: 'secondary', tag: 'L4' },
     { id: 'context', label: 'Context', sublabel: 'compiler · budgets · labels', x: 0, y: 4, variant: 'secondary', tag: 'L5' },
     { id: 'knowledge', label: 'Knowledge', sublabel: 'entitlement-aware retrieval', x: 0, y: 5, variant: 'secondary', tag: 'L6' },
-    { id: 'memory', label: 'Memory', sublabel: 'session · durable · governance', x: 0, y: 6, variant: 'secondary', tag: 'L7' },
-    { id: 'tools', label: 'Tools & actions', sublabel: 'registry · MCP · adapters', x: 0, y: 7, variant: 'secondary', tag: 'L8' },
-    { id: 'identity', label: 'Identity', sublabel: 'agent identities · broker', x: 0, y: 8, variant: 'primary', tag: 'L9' },
-    { id: 'policy', label: 'Policy', sublabel: 'decision points · obligations', x: 0, y: 9, variant: 'primary', tag: 'L10' },
-    { id: 'security', label: 'Security', sublabel: 'isolation · egress · filtering', x: 0, y: 10, variant: 'primary', tag: 'L11' },
-    { id: 'observability', label: 'Observability', sublabel: 'traces · audit · evaluation', x: 0, y: 11, variant: 'secondary', tag: 'L12' },
-    { id: 'control-plane', label: 'Control plane', sublabel: 'inventory · enforcement', x: 1, y: 5, variant: 'primary', tag: 'spans all' },
+    { id: 'memory', label: 'Memory', sublabel: 'session · durable · governance', x: 2, y: 0, variant: 'secondary', tag: 'L7' },
+    { id: 'tools', label: 'Tools & actions', sublabel: 'registry · MCP · adapters', x: 2, y: 1, variant: 'secondary', tag: 'L8' },
+    { id: 'identity', label: 'Identity', sublabel: 'agent identities · broker', x: 2, y: 2, variant: 'primary', tag: 'L9' },
+    { id: 'policy', label: 'Policy', sublabel: 'decision points · obligations', x: 2, y: 3, variant: 'primary', tag: 'L10' },
+    { id: 'security', label: 'Security', sublabel: 'isolation · egress · filtering', x: 2, y: 4, variant: 'primary', tag: 'L11' },
+    { id: 'observability', label: 'Observability', sublabel: 'traces · audit · evaluation', x: 2, y: 5, variant: 'secondary', tag: 'L12' },
+    { id: 'control-plane', label: 'Control plane', sublabel: 'inventory · enforcement', x: 1, y: 2, variant: 'primary', tag: 'spans all' },
   ],
   edges: [
     { from: 'interaction', to: 'runtime' },
