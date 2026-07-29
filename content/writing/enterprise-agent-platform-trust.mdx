@@ -1,0 +1,125 @@
+---
+title: "The Enterprise Agent Platform, Part 2: Identity, Policy, and the Blast Radius"
+description: An agent with a shared service account and standing production credentials is an incident report with the date not yet filled in. This is how the trust layer works, agent identity and delegation, policy as code, the security envelope against prompt injection, human approval as a real control, and transaction safety that survives a lost acknowledgement.
+publishedAt: '2026-07-27'
+tags: [security, identity, governance]
+draft: false
+diagramId: propose-validate-commit
+---
+
+import { proposeValidateCommit } from '@/diagrams/propose-validate-commit'
+
+In [Part 1](/writing/enterprise-agent-platform-architecture/) we established the shape of the estate and the one rule underneath it. Separate the reasoning plane from the action plane. The model proposes, the platform disposes. This part is about the machinery that does the disposing. It answers the three questions every material action raises. Who is this agent, what is it allowed to do, and can it prove it is really that agent. Those map, in order, to identity, policy, and proof of possession, and getting them right is the difference between an agent platform and a pile of unaudited experiments holding production credentials.
+
+## Six identities per action
+
+Start with a fact that most homegrown systems get wrong. A single material agent action involves up to six distinct identities, and the quality of your audit trail depends on never conflating them.
+
+There is the agent's own identity, a first-class directory object per agent instance. The requesting user, when one exists. The platform workload identity of the runtime component actually executing. The model provider endpoint, which matters for data-flow accounting. The tool being invoked. And the business process authority, the mandate under which the action is legitimate at all. A well-formed audit record for a payment adjustment names all six. Agent X version Y, acting for user U, running on workload W, via model endpoint M, invoking tool T, under process P. If your logs collapse any of those into another, you have lost the ability to answer a question an auditor will eventually ask.
+
+<Callout tone="warn" title="The incident that named the stakes">
+  In August 2025, stolen OAuth tokens from a single chat-agent integration cascaded into hundreds of corporate tenants and forced mass revocation across an entire ecosystem. The lesson is not that tokens can be stolen. It is that non-human identity is a blast-radius multiplier. Shared service accounts and long-lived credentials turn one theft into a systemic event. Short-lived credentials, tight scoping, and revocation that works in seconds are what turn it back into a contained one.
+</Callout>
+
+## Give every agent its own identity, and no standing privileges
+
+The direction the industry settled on during 2025 and 2026 is uniform, and it is worth stating as a target. Agents are directory citizens. Each gets a first-class identity, short-lived credentials issued per task from a broker, delegation that preserves the human subject through every hop, just-in-time elevation that expires in minutes, and central revocation that takes effect in seconds. The credential is never stored in the agent's configuration and never present in model context. The adapter holds it for the milliseconds of execution and then it is gone.
+
+The mechanism that makes delegation honest is token exchange. When an agent acts for a user, it exchanges the user's token for a scoped, short-lived, delegation-aware token that still names the human as the subject and the agent as the actor. The tool downstream sees both. The rule that falls out of this is the intersection rule. An agent acting for a user can never exceed what that user may do, and the user's context can never exceed what the agent itself is permitted. The action is confined to the overlap.
+
+That gives you a clean answer for the six standard situations an enterprise actually faces. An agent working on its own standing authority. An agent acting on behalf of a user. An action that requires a manager's approval before the credential is released. A maker-checker split across two agent identities. A financial transaction that binds the credential to a specific amount and counterparty, single-use, with the transaction reference embedded. And an agent crossing an organisational boundary, authenticating with its home identity, presenting a signed capability document, and receiving a partner-scoped identity in the local directory. Every one of these is the same primitive, identity plus scoped delegation plus a policy check, arranged differently.
+
+## Autonomy is a budget you grant
+
+Before we get to policy, we need a way to talk about how much leash an agent has, because the controls are keyed to it. The word *autonomy* obscures more than it reveals, so the useful move is to collapse the talk into a ladder of five earned levels, and to store the assigned level per agent version in the control plane. Select a rung below to see what the agent does at that level, the control regime it earns, and where it shows up in production.
+
+<AutonomyLadder />
+
+The critical property is the one in the footer of that panel. A higher tier is earned by evidence, evaluation results, incident history, control coverage, and rollback proof, and raising an agent's tier is a deliberate, audited act by an accountable human. Autonomy is not a property the agent has. It is a budget the platform grants and can revoke. L5, self-directed goal-setting, has no credible enterprise production evidence and no defensible control story as of mid-2026. It is on the ladder to mark where the map ends.
+
+## Put policy outside the model
+
+Here is the load-bearing sentence of this entire part. Prompt rules are advice. Only externalised policy as code, evaluated at deterministic decision points, constitutes control.
+
+Policy lives at many points, and the design question is which point is authoritative for which rule. The rule of placement is to enforce each rule at the closest deterministic point to the resource it protects, and to never rely on a point the model can talk its way past. The gateway enforces model eligibility, quotas, and jurisdiction pinning. The context builder enforces what may enter the window by classification. The retrieval layer enforces entitlements on knowledge. The tool registry and its decision point enforce what actions are possible at all. The data platform enforces row, field, and masking rules. The workflow engine enforces process order and separation of duties. The output filter enforces what may leave.
+
+The honest control inventory separates soft controls from hard ones and never counts the soft ones as mitigation for a material risk. A rule written into a prompt is cheap, useful, and bypassable. A rule compiled into a policy bundle and evaluated at the tool decision point is enforceable. To make the distinction concrete, here are real policies in enforceable form, each naming its authoritative point.
+
+- **Refund ceiling.** Deny the refund tool when the amount exceeds the per-transaction ceiling for the agent's tier, enforced at the tool decision point, with anything above routed to approval.
+- **Account closure prohibition.** The closure tool is simply absent from every agent's entitlement set, enforced by the registry, not by instruction.
+- **Mandatory approval for payments.** Any tool in the payment audit category returns *require approval* regardless of amount, and the credential is released only against a recorded approval.
+- **Residency.** The gateway pins an EU tenant to EU endpoints and the retrieval layer to EU indexes, as hard eligibility, not preference.
+- **Change freeze.** A single freeze flag in the control plane flips every in-scope write tool to deny, platform-wide, in one switch.
+
+## Design for prompt injection as a permanent condition
+
+Assume that any untrusted content an agent reads may contain instructions, and design as if that will always be true, because it will be. The defences are architectural, not textual. Filters help. Architecture protects.
+
+The 2025 and 2026 incident record reads like a syllabus, and the pattern across all of it is the same three ingredients. Untrusted content, plus over-broad standing privileges, plus weak egress control. A zero-click injection chain exfiltrated context from a major office copilot through crafted content. An injection through a CRM lead field exfiltrated data to an allow-listed but expired domain. Poisoned documents hijacked connector-equipped assistants. Remove any one of the three ingredients and each of these attacks fails.
+
+So the security envelope removes all three, in layers. Isolation, every environment that runs code or renders untrusted content is ephemeral, microVM-class, with read-only base images and no ambient credentials, destroyed on completion. Network, default-deny egress to a named allow list resolved from the tool registry, an egress proxy that logs every denial, cloud metadata endpoints blocked, and no route at all from test to production. Content, input screening, output filtering, and stripping of markdown image and link URLs from rendered output, because image URLs were the exfiltration channel in more than one disclosure. And limits, rate, loop, token, spend, and transaction ceilings, plus kill switches at four grains, single agent, single tool, tenant, and platform, each tested in a drill, each failing closed for writes.
+
+<Callout tone="accent" title="Containment becomes physics">
+  The proof obligation of a well-built network layer is strong enough to state outright. An agent cannot contact an arbitrary external service, cannot exfiltrate to an unlisted destination even when fully injection-compromised, cannot reach an unapproved tool because no route to it exists, and cannot bypass the audit gateway because there is no path around it. Not forbidden. Absent. The difference between a rule and a wall is that you cannot argue with a wall.
+</Callout>
+
+## Human approval is a designed control, not a checkbox
+
+For the actions that warrant a human, approval is a real engineering surface, and it fails in measurable ways if you build it carelessly. The default for anything irreversible or high-value is pre-execution approval, blocking in the workflow, with the credential released only after the decision. And the decision binds. What was approved is exactly what executes, because the arguments are bound to the approval and post-approval mutation is made impossible.
+
+An approver can only be accountable for what the surface shows them, so the surface has to show the proposed action in plain language and as the exact structured call, the evidence as links to real sources rather than paraphrase, the systems that will be affected, the financial and operational impact, the policy checks and their outcomes, and the reversal method with its cost. Then the failure mode to engineer against is approval fatigue, and it is measurable. Track decision time, approval rate, and post-approval regret. When decision times collapse toward seconds and approval rates approach one hundred percent, the control has died, and the honest fix is to show humans only the decisions that genuinely need a human, plus periodic seeded tests, deliberately imperfect proposals that verify approvers still catch defects.
+
+## Transaction safety, or how to survive a lost acknowledgement
+
+The last piece of the trust layer is the one that separates a demo from a system that touches money. When an agent writes to a system of record, the network can lie to it. A request can succeed on the far side and the acknowledgement can be lost on the way back. If your agent assumes success, it under-counts. If it assumes failure and retries naively, it double-pays. The platform makes the safe shape available to every agent so no team has to reinvent it.
+
+<ScrollScene>
+  <ScrollSceneSticky>
+    <ArchitectureDiagram spec={proposeValidateCommit} />
+  </ScrollSceneSticky>
+  <ScrollSceneSteps>
+
+    <Step trigger="overview">
+      ### Propose, validate, commit
+
+      The model proposes a structured effect. Deterministic code validates it. The adapter commits it. Uncertainty is resolved against the system of record, and later failure is compensated. Nothing is ever assumed.
+    </Step>
+
+    <Step trigger="propose">
+      ### The proposal carries an idempotency key
+
+      Every write tool accepts an idempotency key, generated by the runtime per intended effect, so a retry can never double-execute. The validator then checks schema, policy, entitlement, and budget outside the model, before anything runs.
+
+      A failed check routes to revise or escalate. It does not route to hope.
+    </Step>
+
+    <Step trigger="commit">
+      ### Commit through the adapter
+
+      On a clean pass the adapter commits and the effect is checkpointed so the step can resume after a crash. The credential lives in the adapter for the milliseconds of execution and never enters model context.
+    </Step>
+
+    <Step trigger="uncertain">
+      ### The ambiguous timeout
+
+      This is the case that breaks naive systems. The commit times out and the agent does not know whether it landed. So it queries the ledger. Confirmed means checkpoint and move on. Absent means safe retry with the same key. Conflicting means park for a human.
+
+      The trace shows one effect, not two.
+    </Step>
+
+    <Step trigger="compensate">
+      ### Later failure unwinds as a saga
+
+      Multi-step writes run as sagas. When a later step fails, compensating steps run in reverse order, each one itself idempotent, all of it traced. Distributed transactions are avoided in favour of this.
+
+      Reconciliation jobs, not optimism, close the loop on lost acknowledgements.
+    </Step>
+
+  </ScrollSceneSteps>
+</ScrollScene>
+
+The platform specifies the behaviour under failure once, and every agent inherits it. Model provider unavailable means fail over along the evaluated chain or queue non-urgent work, and tell interactive users the truth about reduced service. Tool failure means classified retry, then an alternate tool if the registry names one, then escalation with the partial state preserved. Approval timeout means escalate up the chain on a timer, then park safely, never auto-approve. Budget exceeded means a hard stop at the gate, resumable only by a human decision to extend. Every one of these is a defined answer, written down, drilled, and the same for every agent, which is the only way a fleet of them stays sane.
+
+<Callout tone="accent" title="Where this leaves us">
+  We now have the trust layer, six identities kept distinct, scoped delegation that preserves the human subject, autonomy as a granted budget, policy as code at deterministic points, a security envelope that makes containment physical, approval as a real control, and transaction safety that survives a lost acknowledgement. What remains is proof. None of this is real until you can show it works on every change and watch it working in production. That is evaluation, observability, and the control plane, and it is where [Part 3](/writing/enterprise-agent-platform-operations/) finishes the picture.
+</Callout>

@@ -15,6 +15,7 @@
   --color-accent: #e8412a;
   --color-accent-dim: #c43520;
   --color-ink: #0d0d0d;
+  --color-danger: #b3261e;
 
   /* typography (wired by next/font → CSS variables on <html>) */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
@@ -43,4 +44,5 @@
   --color-accent: #d4a574;
   --color-accent-dim: #8a6d4c;
   --color-ink: #ffffff;
+  --color-danger: #e0556b;
 }

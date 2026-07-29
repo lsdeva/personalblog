@@ -9,6 +9,8 @@ import { SystemFlow } from '@/components/diagram/SystemFlow'
 import { ScrollScene, ScrollSceneSticky, ScrollSceneSteps } from '@/components/scroll/ScrollScene'
 import { Step } from '@/components/scroll/Step'
 import { ResearchLineage } from '@/components/research/ResearchLineage'
+import { AutonomyLadder } from '@/components/report/AutonomyLadder'
+import { CapabilityGrid } from '@/components/report/CapabilityGrid'
 
 // Map HTML tags → styled equivalents + expose custom components to MDX.
 // Only the tag overrides need explicit typing; custom components are passed through.
@@ -28,4 +30,6 @@ export const mdxComponents: MDXComponents = {
   ScrollSceneSteps,
   Step,
   ResearchLineage,
+  AutonomyLadder,
+  CapabilityGrid,
 }

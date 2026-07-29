@@ -1,0 +1,161 @@
+---
+title: "The Enterprise Agent Platform, Part 1: The Eleven Things Around the Agent"
+description: Running hundreds of AI agents against real systems is not a model problem. It is a platform problem. Here is the reference architecture that survived contact with production in 2025 and 2026, from the twelve-layer stack down to what happens inside one agent runtime.
+publishedAt: '2026-07-28'
+tags: [architecture, agents, platform]
+draft: false
+diagramId: twelve-layer-platform
+---
+
+import { twelveLayerPlatform } from '@/diagrams/twelve-layer-platform'
+import { modelRoutingFunnel } from '@/diagrams/model-routing-funnel'
+
+Somewhere between 2024 and 2026 the problem changed shape. It stopped being *how do I make a language model call a tool reliably* and became *how do I run a fleet of tool-using programs against systems of record without losing control of identity, money, data, or audit*. That is a different discipline, and the organisations that made it work share one counterintuitive habit. They treat the agent itself as the smallest and least interesting component in the system.
+
+The durable engineering effort does not sit in the agent. It sits in eleven shared capabilities that surround every agent, and in the control plane that keeps an authoritative inventory of all of them. This is the first of three parts walking through that architecture the way an enterprise architect would reason about it, one decision at a time. This part covers the shape of the whole estate and what happens inside a single agent runtime. [Part 2](/writing/enterprise-agent-platform-trust/) covers identity, policy, security, and transaction safety. [Part 3](/writing/enterprise-agent-platform-operations/) covers how you prove any of it works and operate it at scale.
+
+## The agent is not the point
+
+If you remember one thing, remember this. A production agent is a runtime, not a model. In mature form it composes close to nineteen distinct elements, a model reached through a gateway, a planner, a reasoning loop, a context builder, tool selection over a typed catalogue, policy hooks before and after every action, an identity of its own, credentials fetched per task from a broker, an execution sandbox, and a trace emitted per step. The model is one part. The rest is the platform.
+
+The consequence is blunt. An agent inherits every failure mode of a distributed system and then adds a probabilistic planner on top. The entire point of the platform is to make that combination governable. And the capabilities that do the governing are shared, because rebuilding them per team is how you end up with ten different answers to *which agent made that call* and no good answer to any of them.
+
+<CapabilityGrid />
+
+Notice the buy-build split above. Gateways, sandboxes, durable engines, and vector stores are increasingly commodities. What is yours, and worth building, is the policy content, the evaluation datasets, the domain tools, and the control-plane inventory that together encode your risk appetite and your institutional memory. Buy the plumbing. Build the moat. Keep the exits open by holding tool contracts on open standards and traces in an open format.
+
+## Twelve layers, one spanning control plane
+
+Every credible production platform, whether assembled from cloud services, open source, or a vendor suite, resolves into the same twelve layers. The top three differ per agent and per business. The rest are shared. And one thing spans all of them without ever sitting in the request path.
+
+<ScrollScene>
+  <ScrollSceneSticky>
+    <ArchitectureDiagram spec={twelveLayerPlatform} />
+  </ScrollSceneSticky>
+  <ScrollSceneSteps>
+
+    <Step trigger="overview">
+      ### The whole estate on one page
+
+      Twelve layers, grouped into four bands. Experience at the top, agent logic beneath it, a wide belt of shared services in the middle, a trust band under that, and observability at the base. The control plane runs down the side, spanning everything.
+
+      Scroll to walk down the stack band by band.
+    </Step>
+
+    <Step trigger="agent-logic">
+      ### Layers 1 to 3 belong to the business
+
+      The interaction surface, the agent runtime, and the durable orchestration are where domain knowledge lives. These are federated. Teams own their agent logic, their prompts, their domain tools, and their interfaces, and they register what they build with the platform.
+
+      Central teams that try to build every agent become the bottleneck. Central teams that enforce paved roads scale.
+    </Step>
+
+    <Step trigger="shared-services">
+      ### Layers 4 to 8 are shared and mandatory
+
+      Model access, context, knowledge, memory, and tools. Every agent uses the same gateway, the same context compiler, the same entitlement-aware retrieval, the same governed memory, and the same tool registry.
+
+      This is not a preference. A security floor and a cost chokepoint cannot vary by team, or they are not a floor at all.
+    </Step>
+
+    <Step trigger="trust">
+      ### The trust band is where control lives
+
+      Identity, policy, and security. Every agent gets a first-class identity. Every material action passes a policy decision made outside the model. Every execution runs inside a sandbox with default-deny egress.
+
+      Prompts shape behaviour. Only these three layers, enforced deterministically, constitute control.
+    </Step>
+
+    <Step trigger="control-plane">
+      ### The control plane spans it all
+
+      It holds the authoritative inventory of every agent, version, model, tool, policy, and identity in the estate. It administers every enforcement point. But it stays out of the request path, so the estate keeps running when it restarts.
+
+      Part 3 specifies it in full. For now, note that it is what makes rollback a real operation instead of a hope.
+    </Step>
+
+  </ScrollSceneSteps>
+</ScrollScene>
+
+The layering is not academic. It tells you what to centralise and what to federate. The model gateway, the identity broker, the audit store, the sandbox floor, and the policy engine are central and mandatory. The agent logic, the domain tools, the domain knowledge indexes, and the business interfaces are federated with registration. The platform stays out of the delivery critical path by shipping self-service, scaffolding templates, policy linting, evaluation harnesses, and promotion pipelines that teams run themselves, with human review reserved for the high-risk tiers.
+
+## The first architectural rule
+
+There is a single idea underneath the whole design, and it is worth stating plainly before anything else. **Separate the reasoning plane from the action plane.**
+
+The model generates proposals as structured data. A deterministic layer then validates every proposal against schema, policy, entitlement, and budget before anything executes. No agent holds a write credential that the action plane has not independently checked, per call. The model proposes. The platform disposes.
+
+<Callout tone="warn" title="The failure that proves the rule">
+  The best-documented incidents of 2025 came from teams that inverted this. They let the model hold the only copy of the plan and the permissions at once. That is how a coding agent deleted a production database during a declared freeze, and how a string of zero-click exfiltration findings landed against major copilots. When the model holds the plan and the keys, prompt injection is no longer a nuisance. It is remote code execution with your credentials.
+</Callout>
+
+Everything in these three parts is, in one way or another, a mechanism for keeping the reasoning plane and the action plane apart. The gateway is a chokepoint between agent and model. The tool registry is a chokepoint between agent and action. The policy decision point sits in the gap and says yes or no. The sandbox contains what happens when something says yes that should have said no.
+
+## Inside one agent runtime
+
+Zoom all the way in, to what happens inside a single agent on a single request. The execution loop is a cycle of plan, act, observe, repeat. What makes it safe is not the loop. It is the gate between iterations.
+
+That next-step gate is deterministic code, never model judgement. It enforces loop caps so a wandering agent cannot spin forever. It enforces token and currency budgets so cost cannot run away. It re-evaluates policy on any risk-relevant step, so a rule change mid-task takes effect before the next action. And it escalates on defined triggers, low confidence, repeated tool failure, or a policy denial. The model proposes each next step. The gate decides whether that step is allowed to happen.
+
+Different processes want different loop shapes, and choosing wrong is expensive. A short investigation wants a simple think-act-observe loop. A multi-step back-office task wants plan-and-execute, so there is a reviewable plan artefact before anything runs. Anything that touches money wants a durable workflow engine on the outside calling agentic steps on the inside, because that is the only shape that gives you provable compensation when a step fails halfway. The rule of thumb is boring and correct. Use a framework alone for short, recoverable, low-risk work. Use an engine on the outside the moment money moves, approvals wait, or a task must outlive a deployment. Use neither when a single model call with structured output solves the problem, which is more often than agent enthusiasm admits.
+
+## The model estate and the gateway
+
+A mature platform manages a portfolio of models, not a model. Frontier models for hard reasoning. Small and mid-tier models for classification, extraction, and the high-volume steps. Open-weight models where residency or cost at scale demands self-hosting. Embedding models and rerankers for retrieval. Judge models for evaluation. Each one carries, in the control plane, its licence, its hosting mode, its approved data classifications, its approved jurisdictions, its evaluation results, and its lifecycle state.
+
+Everything reaches those models through one enforced chokepoint. The gateway solves seven problems in one place, authentication of the calling workload, quota and budget per agent and team and tenant, routing and failover across providers, prompt and prefix caching, uniform logging with redaction, policy hooks on input and output, and cost metering with attribution tags that finance can actually bill against. It is stateless apart from its caches and counters, it scales horizontally, and it fails static, meaning cached policy and routing tables keep working if the control plane is briefly unreachable. This is the single highest ratio of value to effort in the whole platform, and it is a buy, not a build. A bespoke gateway is rarely differentiating.
+
+The interesting decision inside the gateway is routing, and the shape that works is a funnel. Hard eligibility first, then soft preference.
+
+<ScrollScene>
+  <ScrollSceneSticky>
+    <ArchitectureDiagram spec={modelRoutingFunnel} />
+  </ScrollSceneSticky>
+  <ScrollSceneSteps>
+
+    <Step trigger="overview">
+      ### Two stages, in this order
+
+      A request arrives tagged with its task class, risk tier, data classification, tenant, and latency target. It passes through a hard filter, then a soft ranking. The order is the whole point.
+    </Step>
+
+    <Step trigger="hard">
+      ### Eligibility is hard law
+
+      Jurisdiction, data classification, context window, modality, and tool-use reliability either permit a model or they do not. A request tagged confidential and EU-resident can reach only models approved for that pair, regardless of price or provider health.
+
+      This filter is non-negotiable. Price never buys its way past residency.
+    </Step>
+
+    <Step trigger="soft">
+      ### Preference is soft optimisation
+
+      Among the eligible survivors, rank by quality on the task class, then latency against the surface target, then cost. The winner is the cheapest model that clears the quality bar and the latency budget.
+
+      Complexity-based routing sends easy traffic to small models and escalates only when confidence drops or validation fails.
+    </Step>
+
+    <Step trigger="fallback">
+      ### Fallbacks must be tested
+
+      When the primary errors, the request walks an evaluation-verified fallback chain. This matters more than it looks. Prompts and tool schemas do not transfer perfectly across model families.
+
+      An untested fallback is not resilience. It is an outage with extra steps.
+    </Step>
+
+  </ScrollSceneSteps>
+</ScrollScene>
+
+One discipline makes the whole model estate safe over time. Pin versions. Providers ship dated snapshots precisely so behaviour is reproducible, and every production agent declares the exact model and version it runs. Upgrades follow a rehearsed path, freeze the candidate, run the full evaluation suite, run shadow traffic in parallel for days, canary a small slice with automatic rollback wired in, then stage the rollout while keeping the prior pin warm. Silent auto-upgrade of a model under a regulated workload is not convenience. It is a change-control failure waiting for an incident report.
+
+## Context is a compiled artefact
+
+The last idea in this part is the one most teams discover too late. The context window is a scarce, priced, security-sensitive runtime resource, and what fills it decides behaviour more than anything except the model choice. So treat the window as the output of a compiler, not as a prompt someone edits by hand.
+
+The inputs to that compiler are each versioned and owned. System instructions and the role definition. Business policies that must appear verbatim. User context resolved from systems of record, never trusted from the prompt. Task state. Retrieved documents, each carrying its source, its timestamp, and its classification. Tool schemas for the tools this agent may use right now. Memory items. The compiler assembles these under an explicit token budget per section, in a deliberate order, with a trust label on every span.
+
+Two facts from production make this concrete. Prefix-caching discounts run up to ninety percent on cached input tokens with major providers, so a stable context layout that keeps the front of the window identical across calls is a first-order cost lever, not a nicety. And tool-schema bloat is real. Estates that attach every available tool to every call burn context and confuse selection. The pattern that won is dynamic tool loading, where the agent searches the registry and loads only the schemas it needs for the step in front of it.
+
+<Callout tone="accent" title="Where this leaves us">
+  We have the shape of the estate, the rule that separates reasoning from action, the runtime loop and its deterministic gate, the model portfolio behind a gateway, and the compiled context window. What we have not yet built is the machinery that answers the three questions every action raises. Who is this agent, what is it allowed to do, and can it prove it. That is identity, policy, and security, and it is where [Part 2](/writing/enterprise-agent-platform-trust/) begins.
+</Callout>

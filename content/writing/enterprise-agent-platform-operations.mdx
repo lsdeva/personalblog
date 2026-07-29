@@ -1,0 +1,105 @@
+---
+title: "The Enterprise Agent Platform, Part 3: Proof, Cost, and the Control Plane"
+description: A platform without evaluation gates and step-level tracing does not have production agents. It has unaudited experiments with production credentials. This is the operations half, evaluation wired into release, observability to the step, cost per completed task, and the control plane that ties the whole estate together.
+publishedAt: '2026-07-26'
+tags: [operations, evaluation, platform]
+draft: false
+diagramId: agent-control-plane
+---
+
+import { agentControlPlane } from '@/diagrams/agent-control-plane'
+
+[Part 1](/writing/enterprise-agent-platform-architecture/) built the estate. [Part 2](/writing/enterprise-agent-platform-trust/) built the trust layer that keeps the reasoning plane and the action plane apart. This final part is about proof and operation, because none of the architecture is real until you can demonstrate it works on every change and watch it working in production. There is a blunt way to say why this matters. A platform that lacks an evaluation suite wired into release and a trace of every step tied to identity and policy does not have production agents. It has unaudited experiments running with production credentials. Evaluation and observability are not nice-to-haves. They are the licence to operate.
+
+## Evaluation is the immune system
+
+Evaluation is layered, because no single method sees everything, and the layers run cheapest-first so the fast checks catch the obvious failures before the expensive ones run.
+
+The floor is deterministic assertions. Schema conformance, citation presence, forbidden-content absence, valid tool arguments. These are fast, unambiguous, and run on everything. Above them sit golden datasets, curated input and expected-outcome pairs per agent, drawn from real traces and hand-built edge cases, owned by the agent team and versioned like code. Above those, trajectory evaluation judges not just the final answer but the path the agent took. Did it choose the right tools, in the right order, without wasted loops, and escalate when it should have. Then security evaluation runs adversarial suites, injection corpora, jailbreak libraries, and exfiltration probes, keyed to the threat model from Part 2. And at the top, business-outcome evaluation ties sampled production tasks back to the value the business case claimed.
+
+Model-graded evaluation, one model scoring another against a rubric, scales the middle of that pyramid. It is useful and it is biased, and the discipline around it is not optional. Judges show position bias, verbosity bias, and self-preference, and they drift when the judge model itself changes. So pin the judge model version, calibrate it against a human-labelled set at every change, report judge-to-human agreement alongside the scores, and never let a judge alone gate a high-risk release. Human sign-off with judge assistance, not judge sign-off with humans absent.
+
+<Callout tone="info" title="What is under version control">
+  Everything that shapes behaviour. Agent code, system prompts and every compiled context part, tool descriptions and schemas, workflow definitions, policy bundles, model pins and routing hints, evaluation datasets and rubrics, and knowledge-ingestion code. All of it binds into a release manifest, one deployable and auditable unit, and the control plane records which manifest runs where. This is the thing that makes rollback a real operation instead of a hope.
+</Callout>
+
+The pipeline from commit to production is where those layers become gates. A commit runs lint, unit tests, and the fast deterministic subset. A build produces signed artefacts and a manifest. Staging runs the full golden sets, trajectory checks, adversarial suites, and cost and latency budgets. A release gate records sign-offs by risk tier. Then a canary with automatic rollback, shadow traffic for model swaps, and a staged rollout. The thresholds are tiered, and they block promotion mechanically. A low-risk agent needs to clear its baseline. A high-risk write agent needs zero policy violations in the replay suite, mandatory citation, red-team sign-off, and a passed human-handoff drill. The structural point is not the specific numbers. It is that the numbers exist per tier, are recorded, and stop a release that misses them without a human having to remember to check.
+
+## Instrument to the step, not the request
+
+Observability for agents is distributed tracing, with one non-negotiable property. The trace covers every step, not just the request boundary. One trace per task, with a span for every model call, every tool call, every retrieval, every policy decision, every approval, and every state transition, correlated end to end by identifiers stamped at intake. If it is not in the trace, it did not happen, and that includes for regulators.
+
+The telemetry divides into five families, and naming them keeps teams honest about what they capture. Model telemetry, the exact version, the token counts, the cost, the cache-hit state. Agent telemetry, the plan as an artefact, the loop count, the completion status against the task contract, the escalations with their reasons. Tool telemetry, the arguments after redaction, the authorisation decision reference, the idempotency key. Governance telemetry, the policy evaluated with its version, the approval records, the data classifications touched, the overrides with reason codes. And business telemetry, the completion against definition of done, the value generated, and the cost per completed task. The audit subset of all this, every material action with its decision and identities and effect, lands in immutable storage with retention by record class.
+
+Operating the fleet then runs on service-level objectives set per agent at onboarding, task success rate, latency, escalation rate, a policy-violation ceiling that sits at zero for hard rules, and a cost-per-task band. Alerting fires on the things that actually predict trouble, loop and spend anomalies, injection-filter spikes, drift in the tool-selection mix, and approval queues ageing. And the operational ritual that teams running real fleets converge on is a weekly trace review of sampled and failed runs with the agent's owner in the room, plus incident playbooks per failure class, each with a named kill switch and a rehearsal date.
+
+## Cost per task, not cost per token
+
+Token prices fell steeply between 2024 and 2026, and plenty of programmes still watched their bills rise, because agents multiply calls. The teams with defensible unit economics engineered them, and the first move is to measure the right thing. Cost per request is a diagnostic. Cost per completed task is the operating metric. Cost per completed business process, compared against the pre-agent baseline, is the number an executive should actually see. Cost per token is the number that decides nothing.
+
+The levers, in rough order of effect, are known. Route by complexity so small models carry the volume and frontier models carry only the exceptions. Engineer for prefix-cache hits with a stable context layout, which alone removes a large share of input-token cost. Compress context and load tool schemas dynamically. Constrain outputs, since output tokens price higher than input. Batch everything offline on discount tiers. Cap loops and retries with budgets that stop the bleeding early. And delete or demote agents whose cost per outcome never beat the alternative, which the control plane's benefit records turn into an evidence-based decision rather than a political one. One number deserves explicit tracking that teams often hide. The cost of control, the assurance share of total spend. Healthy platforms spend a visible fraction there on purpose and can say so out loud.
+
+## The control plane ties it together
+
+Everything across these three parts, the gateway, the identity broker, the tool registry, the policy engine, the evaluation ledger, the trace store, has been a shared capability. The thing that knows about all of them, and administers all of them, is the control plane. It is the authoritative system of record about the agent estate. And its defining architectural property is that it does not sit in the request path.
+
+<ScrollScene>
+  <ScrollSceneSticky>
+    <ArchitectureDiagram spec={agentControlPlane} />
+  </ScrollSceneSticky>
+  <ScrollSceneSteps>
+
+    <Step trigger="overview">
+      ### The system of record about the platform itself
+
+      At the centre is the registry and inventory. Around it, enforcement points that do the actual work per request. The control plane administers them without standing between an agent and its action.
+    </Step>
+
+    <Step trigger="inventory">
+      ### Everything is an entity, every relation queryable
+
+      Agents, versions, models, prompts, tools, data sources, policies, identities, evaluation evidence, approvals, incidents, cost, benefit. The evaluation ledger feeds gate evidence in. The deployment manager records which manifest runs where.
+
+      This is queryable because the questions are urgent. Which agents can touch payments. Which use this tool version. Which hold this entitlement. During an incident those must answer in seconds.
+    </Step>
+
+    <Step trigger="fail-static">
+      ### Enforcement points pull, then enforce locally
+
+      The gateway, the credential broker, the policy decision point, and the workflow engine each pull versioned, signed configuration and enforce it locally. That is the whole trick.
+
+      Cached bundles keep decisions flowing even when the control plane briefly restarts. It fails static. The estate does not stop when its system of record reboots.
+    </Step>
+
+    <Step trigger="revocation">
+      ### One switch, effect in seconds
+
+      Suspension and revocation are a single call that flips runtime admission, credential issuance, and tool resolution for a scope at once. It takes effect in seconds, because all three enforcement families check the same authority.
+
+      This is the kill switch from Part 2, made real by the inventory that knows exactly what to revoke.
+    </Step>
+
+  </ScrollSceneSteps>
+</ScrollScene>
+
+The control plane also carries the tenancy model, business unit, country, regulated entity, residency zone, and environment as dimensions on every record, with hard partitions where regulation demands them and promotion as the only bridge from test to production. It runs active-active for reads over a strongly consistent write core, and it is itself the highest-privilege system in the estate, so it gets hardware-backed admin identities, dual control on destructive verbs, and immutable audit of every administrative act. If any of that sounds like a lot, note that the market converged on exactly this shape. The hyperscaler agent platforms and the identity suites all shipped control-plane products around it through 2025 and 2026.
+
+## What to build first, and in what order
+
+The reassuring finding is that the whole blueprint is buildable today from parts that already exist at production maturity. The daunting finding is that skipping the foundations shows up later as incident reports. So the sequencing matters, and it is worth being concrete about the minimum.
+
+For the first five production agents, the mandatory list is short and every item on it pays for itself at one agent. A gateway with logging, budgets, and two providers. Per-agent identities with broker-issued credentials, and no shared service accounts. A tool registry with typed contracts, where unregistered tools are simply unreachable. A sandbox with default-deny egress. One approval-service pattern with argument binding. Idempotency and retry conventions in the tool adapter. A trace contract with immutable audit for material actions. Golden sets and an adversarial subset per agent in CI. A kill switch at agent grain, tested once. And a thin inventory naming every agent, its owner, its tier, and its manifest.
+
+At one hundred agents, configuration sprawl arrives and the load-bearing additions are self-service onboarding, policy as code at every decision point, entitlement-aware retrieval as the only retrieval path, evaluation self-service with tiered thresholds, and the full control plane with blast-radius queries answering in seconds. The argument for building identity, registry, and telemetry uniformly at one hundred rather than one thousand is simple. Nothing at one thousand works if they were not uniform earlier.
+
+<Callout tone="warn" title="The ten shortcuts that become incident reports">
+  Shared service accounts for agents. Prompt rules counted as security controls. Write tools without idempotency keys. Retrieval without query-time entitlement enforcement. Agents holding standing production credentials, or any path from test to production. Unregistered tools reachable by construction. Long-running work outside a durable engine. Releases without evaluation gates, or model upgrades without pins. Traces that omit policy decisions, or audit stores that can be edited. And egress open by default from any execution environment. Each of these has a named incident behind it from 2025. None of them is hypothetical.
+</Callout>
+
+## Where the field is going
+
+A three-to-five-year view, with the honest caveat that this field keeps compressing its own timelines. Production-ready today is more than most enterprises have deployed, the open tool interface and its stateless revision, the cross-platform agent-delegation protocol among cooperating parties, durable execution engines under agents, microVM sandboxing, gateways with routing and caching, agent identities with delegation-preserving token exchange shipping at general availability, and trace pipelines on open conventions. The entire control plane is buildable now from these parts.
+
+Emerging, and worth piloting behind the control plane rather than betting on, are enterprise agent registries as products, payment protocols for agent-initiated transactions, evaluation as a managed capability, and simulation environments for pre-production testing. Likely within three years are cross-organisation delegation chains with verifiable mandates, cryptographically signed trace attestations that give auditors tamper-evident histories, and machine-readable policy for continuous compliance. Genuinely speculative, blocked less by technology than by liability and accountability law, are open agent commerce among strangers at material value and fully autonomous fleets owning whole business functions without human checkpoints. Each has demonstrations. None has a defensible enterprise control story yet.
+
+The adoption path for every one of those is the same, and it is the discipline this whole series has been about. Watch the standard, pilot behind the existing control plane, gate on evidence, then scale, with the control-plane inventory as the place where a new capability class gets registered before it is ever granted power. That last clause is the entire philosophy in one line. Nothing gets power in this architecture until the system of record knows it exists.

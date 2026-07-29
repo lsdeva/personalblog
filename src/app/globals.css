@@ -197,6 +197,390 @@
 }
 
 /* ──────────────────────────────────────────────────────────────
+   Report interactives — AutonomyLadder + CapabilityGrid.
+   Both live inside .prose-article as .full-bleed blocks, use the
+   site design tokens directly, and read the same in both themes.
+   ────────────────────────────────────────────────────────────── */
+
+.al-root,
+.cg-root {
+  margin-top: 3rem;
+  margin-bottom: 3rem;
+  border: 1px solid var(--color-border-hi);
+  background: var(--color-surface);
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.al-head,
+.cg-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.al-head-rule,
+.cg-head-rule {
+  width: 24px;
+  height: 1px;
+  background: var(--color-accent);
+  flex: none;
+}
+
+.al-head-code,
+.cg-head-code {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 45%, transparent);
+  padding: 3px 8px;
+}
+
+.al-head-title,
+.cg-head-title {
+  font-family: var(--font-serif);
+  font-size: clamp(1rem, 2.2vw, 1.25rem);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  line-height: 1.2;
+  flex: 1 1 16rem;
+}
+
+/* ── AutonomyLadder ──────────────────────────────────────────── */
+
+.al-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 52rem) {
+  .al-grid {
+    grid-template-columns: minmax(14rem, 20rem) 1fr;
+    gap: 2rem;
+  }
+}
+
+.al-rail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.al-rung {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.4rem;
+  text-align: left;
+  padding: 0.7rem 0.85rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-left: 2px solid var(--color-border);
+  cursor: pointer;
+  transition: border-color 160ms var(--ease-out-quart), background 160ms var(--ease-out-quart);
+}
+
+.al-rung:hover {
+  border-color: var(--color-border-hi);
+}
+
+.al-rung.is-on {
+  border-color: var(--color-border-hi);
+  border-left-color: var(--color-accent);
+  background: var(--color-surface-hi);
+}
+
+.al-rung.is-danger.is-on {
+  border-left-color: var(--color-danger, #e0556b);
+}
+
+.al-rung-level {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+}
+
+.al-rung.is-danger .al-rung-level {
+  color: var(--color-danger, #e0556b);
+}
+
+.al-rung-name {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-fg);
+}
+
+.al-rung-meter {
+  grid-column: 2;
+  height: 3px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.al-rung-fill {
+  display: block;
+  height: 100%;
+  background: color-mix(in oklab, var(--color-accent) 70%, transparent);
+}
+
+.al-rung.is-danger .al-rung-fill {
+  background: color-mix(in oklab, var(--color-danger, #e0556b) 75%, transparent);
+}
+
+.al-panel {
+  min-width: 0;
+}
+
+.al-panel-top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.al-badge {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-bg);
+  background: var(--color-accent);
+  padding: 0.35rem 0.6rem;
+  flex: none;
+}
+
+.al-badge.is-danger {
+  background: var(--color-danger, #e0556b);
+}
+
+.al-panel-name {
+  font-family: var(--font-serif);
+  font-size: 1.375rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  line-height: 1.1;
+}
+
+.al-panel-verb {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-top: 0.25rem;
+}
+
+.al-defs {
+  margin: 0;
+  padding: 0;
+}
+
+.al-defs > div {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.al-defs > div:last-child {
+  border-bottom: none;
+}
+
+.al-defs dt {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 0.4rem;
+}
+
+.al-defs dd {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--color-fg);
+}
+
+.al-foot,
+.cg-panel .cg-posture {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--color-muted);
+}
+
+.al-foot {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── CapabilityGrid ──────────────────────────────────────────── */
+
+.cg-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 52rem) {
+  .cg-layout {
+    grid-template-columns: 1.1fr 1fr;
+    gap: 2rem;
+  }
+}
+
+.cg-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+@media (min-width: 30rem) {
+  .cg-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.cg-cell {
+  width: 100%;
+  height: 100%;
+  min-height: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  text-align: left;
+  padding: 0.7rem 0.75rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: border-color 160ms var(--ease-out-quart), background 160ms var(--ease-out-quart);
+}
+
+.cg-cell:hover {
+  border-color: var(--color-border-hi);
+}
+
+.cg-cell.is-on {
+  border-color: var(--color-accent);
+  background: var(--color-surface-hi);
+}
+
+.cg-cell-num {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+}
+
+.cg-cell.is-on .cg-cell-num {
+  color: var(--color-accent);
+}
+
+.cg-cell-name {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--color-fg);
+}
+
+.cg-panel {
+  min-width: 0;
+  align-self: start;
+  border: 1px solid var(--color-border);
+  border-top: 2px solid var(--color-accent);
+  background: var(--color-bg);
+  padding: 1.25rem 1.35rem;
+}
+
+.cg-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.9rem;
+}
+
+.cg-panel-num {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.cg-panel-name {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  line-height: 1.1;
+  flex: 1 1 auto;
+}
+
+.cg-tag {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border: 1px solid var(--color-border-hi);
+  color: var(--color-muted);
+  flex: none;
+}
+
+.cg-tag-buy {
+  color: var(--color-accent);
+  border-color: color-mix(in oklab, var(--color-accent) 50%, transparent);
+}
+
+.cg-tag-build {
+  color: var(--color-ink);
+  border-color: var(--color-border-hi);
+}
+
+.cg-solves {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--color-fg);
+}
+
+.cg-panel .cg-posture {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.cg-posture-label {
+  display: block;
+  color: var(--color-accent);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+
+/* ──────────────────────────────────────────────────────────────
    Base
    ────────────────────────────────────────────────────────────── */
 
