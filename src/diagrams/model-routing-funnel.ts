@@ -12,9 +12,9 @@ export const modelRoutingFunnel: DiagramSpec = {
   a11yDescription:
     'A model-routing flow. A request tagged with task class, risk tier, data classification, tenant, and SLO enters a hard eligibility filter that removes any model not permitted for its jurisdiction, data class, context size, or tool support. Survivors pass to a soft preference rank ordered by quality, latency, cost, and provider health. The top-ranked model is the primary; an evaluation-verified fallback chain handles errors, and degraded requests queue or drop to a smaller approved model.',
   nodes: [
-    { id: 'request', label: 'Request + hints', sublabel: 'task · risk · data · tenant · SLO', x: 1, y: 0, variant: 'secondary' },
-    { id: 'eligibility', label: 'Eligibility filter', sublabel: 'jurisdiction · data class · context · tools', x: 1, y: 1, variant: 'primary', tag: 'hard law' },
-    { id: 'preference', label: 'Preference rank', sublabel: 'quality · latency · cost · health', x: 1, y: 2, variant: 'primary', tag: 'soft' },
+    { id: 'request', label: 'Request + hints', sublabel: 'task · risk · data · tenant', x: 1, y: 0, variant: 'secondary' },
+    { id: 'eligibility', label: 'Eligibility filter', sublabel: 'jurisdiction · class · context', x: 1, y: 1, variant: 'primary', tag: 'hard law' },
+    { id: 'preference', label: 'Preference rank', sublabel: 'quality · latency · cost', x: 1, y: 2, variant: 'primary', tag: 'soft' },
     { id: 'primary', label: 'Primary model', sublabel: 'top eligible rank', x: 0, y: 3, variant: 'primary' },
     { id: 'fallback', label: 'Fallback chain', sublabel: 'evaluation-verified', x: 1, y: 3, variant: 'secondary' },
     { id: 'degrade', label: 'Degrade or queue', sublabel: 'smaller model · batch', x: 2, y: 3, variant: 'ghost', tag: 'last resort' },

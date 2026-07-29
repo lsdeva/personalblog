@@ -20,7 +20,7 @@ export const proposeValidateCommit: DiagramSpec = {
     { id: 'confirmed', label: 'Confirmed', sublabel: 'checkpoint · next', x: 2, y: 1, variant: 'secondary' },
     { id: 'uncertain', label: 'Uncertain outcome', sublabel: 'ambiguous timeout', x: 3, y: 0, variant: 'ghost', tag: 'query SoR' },
     { id: 'reconcile', label: 'Query system of record', sublabel: 'confirm · retry · park', x: 3, y: 1, variant: 'secondary' },
-    { id: 'compensate', label: 'Saga compensation', sublabel: 'reverse in order · traced', x: 1, y: 2, variant: 'primary', tag: 'on later failure' },
+    { id: 'compensate', label: 'Saga compensation', sublabel: 'reverse in order · traced', x: 1, y: 2, variant: 'primary', tag: 'on failure' },
   ],
   edges: [
     { from: 'propose', to: 'validate', variant: 'emphasis' },

@@ -36,6 +36,30 @@ function nodeRect(x: number, y: number) {
   }
 }
 
+// Horizontal room for text inside a node box, leaving a small inner margin so
+// glyphs never touch the border.
+const TEXT_INSET = 14
+const MAX_TEXT_W = CELL_W - TEXT_INSET * 2
+
+/**
+ * Estimate the rendered width of an SVG text run, then, if it would overflow
+ * the available box width, return a `textLength` that SVG uses to compress the
+ * glyphs to fit. Returns `undefined` when the text already fits, so short
+ * labels render at their natural width. `perChar` approximates the average
+ * advance for the font at the given size (sans ≈ 0.56em, mono ≈ 0.6em) plus
+ * the tracking added by letterSpacing.
+ */
+function fitTextLength(
+  text: string,
+  fontSize: number,
+  perCharEm: number,
+  letterSpacing = 0,
+  maxW = MAX_TEXT_W,
+): number | undefined {
+  const estimated = text.length * (fontSize * perCharEm + letterSpacing)
+  return estimated > maxW ? maxW : undefined
+}
+
 // Given a line from A → B where A is inside the rectangle, return the point
 // where the line exits the rectangle. Used so edges begin and end on node
 // boundaries rather than node centers (which made diagonal edges look
@@ -437,6 +461,8 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
                   fontFamily="var(--font-sans)"
                   fontSize="15"
                   fontWeight={500}
+                  textLength={fitTextLength(node.label, 15, 0.56)}
+                  lengthAdjust="spacingAndGlyphs"
                 >
                   {node.label}
                 </text>
@@ -449,6 +475,8 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
                     fontFamily="var(--font-mono)"
                     fontSize="10"
                     letterSpacing="0.06em"
+                    textLength={fitTextLength(node.sublabel, 10, 0.6, 0.6)}
+                    lengthAdjust="spacingAndGlyphs"
                   >
                     {node.sublabel}
                   </text>
@@ -462,6 +490,8 @@ export function ArchitectureDiagram({ spec, descriptionId }: ArchitectureDiagram
                     fontFamily="var(--font-mono)"
                     fontSize="9"
                     letterSpacing="0.18em"
+                    textLength={fitTextLength(node.tag.toUpperCase(), 9, 0.6, 1.62, MAX_TEXT_W * 0.62)}
+                    lengthAdjust="spacingAndGlyphs"
                   >
                     {node.tag.toUpperCase()}
                   </text>

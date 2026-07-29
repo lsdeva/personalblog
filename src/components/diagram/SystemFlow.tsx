@@ -11,6 +11,17 @@ const NODE_H = 54
 const STEP_MS = 950 // dwell per trace hop while playing
 const END_HOLD_MS = 1500
 
+// Text is left-anchored at n.x + 12, so the room before the right edge is the
+// box width minus that inset and a small right margin.
+const SF_TEXT_W = NODE_W - 12 - 10
+
+/** Clamp an over-wide SVG text run to `SF_TEXT_W` via textLength; undefined (no
+ *  clamp) when it already fits. perCharEm ≈ average glyph advance for the font. */
+function sfFit(text: string, fontSize: number, perCharEm: number, letterSpacing = 0): number | undefined {
+  const est = text.length * (fontSize * perCharEm + letterSpacing)
+  return est > SF_TEXT_W ? SF_TEXT_W : undefined
+}
+
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false)
   useEffect(() => {
@@ -320,11 +331,22 @@ export function SystemFlow() {
                   fontSize="13"
                   fontWeight="500"
                   fill={on ? 'var(--color-ink)' : 'var(--color-fg)'}
+                  textLength={sfFit(n.label, 13, 0.56)}
+                  lengthAdjust="spacingAndGlyphs"
                 >
                   {n.label}
                 </text>
                 {n.sub && (
-                  <text x={n.x + 12} y={n.y + 40} fontFamily={FM} fontSize="8.5" letterSpacing="0.02em" fill="var(--color-muted)">
+                  <text
+                    x={n.x + 12}
+                    y={n.y + 40}
+                    fontFamily={FM}
+                    fontSize="8.5"
+                    letterSpacing="0.02em"
+                    fill="var(--color-muted)"
+                    textLength={sfFit(n.sub, 8.5, 0.6, 0.02)}
+                    lengthAdjust="spacingAndGlyphs"
+                  >
                     {n.sub}
                   </text>
                 )}

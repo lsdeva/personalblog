@@ -16,7 +16,7 @@ export const twelveLayerPlatform: DiagramSpec = {
     { id: 'runtime', label: 'Agent runtime', sublabel: 'planning · reasoning loop', x: 0, y: 1, variant: 'primary', tag: 'L2' },
     { id: 'orchestration', label: 'Orchestration', sublabel: 'durable workflows · timers', x: 0, y: 2, variant: 'primary', tag: 'L3' },
     { id: 'model', label: 'Model access', sublabel: 'gateway · router · cache', x: 0, y: 3, variant: 'secondary', tag: 'L4' },
-    { id: 'context', label: 'Context', sublabel: 'compiler · budgets · trust labels', x: 0, y: 4, variant: 'secondary', tag: 'L5' },
+    { id: 'context', label: 'Context', sublabel: 'compiler · budgets · labels', x: 0, y: 4, variant: 'secondary', tag: 'L5' },
     { id: 'knowledge', label: 'Knowledge', sublabel: 'entitlement-aware retrieval', x: 0, y: 5, variant: 'secondary', tag: 'L6' },
     { id: 'memory', label: 'Memory', sublabel: 'session · durable · governance', x: 0, y: 6, variant: 'secondary', tag: 'L7' },
     { id: 'tools', label: 'Tools & actions', sublabel: 'registry · MCP · adapters', x: 0, y: 7, variant: 'secondary', tag: 'L8' },
@@ -24,7 +24,7 @@ export const twelveLayerPlatform: DiagramSpec = {
     { id: 'policy', label: 'Policy', sublabel: 'decision points · obligations', x: 0, y: 9, variant: 'primary', tag: 'L10' },
     { id: 'security', label: 'Security', sublabel: 'isolation · egress · filtering', x: 0, y: 10, variant: 'primary', tag: 'L11' },
     { id: 'observability', label: 'Observability', sublabel: 'traces · audit · evaluation', x: 0, y: 11, variant: 'secondary', tag: 'L12' },
-    { id: 'control-plane', label: 'Control plane', sublabel: 'inventory · enforcement · revocation', x: 1, y: 5, variant: 'primary', tag: 'spans all' },
+    { id: 'control-plane', label: 'Control plane', sublabel: 'inventory · enforcement', x: 1, y: 5, variant: 'primary', tag: 'spans all' },
   ],
   edges: [
     { from: 'interaction', to: 'runtime' },
